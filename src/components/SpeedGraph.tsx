@@ -92,6 +92,12 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
               const isSelected = point.markerId === highlightedMarkerId;
               const isDimmed =
                 highlightedMarkerId !== null && !isSelected;
+              const markerColor =
+                point.severity === "critical"
+                  ? "fill-red-500"
+                  : point.severity === "moderate"
+                    ? "fill-amber-500"
+                    : "fill-teal-600";
 
               return (
                 <g key={point.markerId}>
@@ -100,12 +106,12 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
                     cy={point.y}
                     r={isSelected ? 7 : 5}
                     className={cn(
-                      "transition-all duration-200",
+                      "transition-all duration-200 stroke-white",
                       isSelected
-                        ? "fill-amber-500 stroke-white"
+                        ? "fill-amber-500"
                         : isDimmed
-                          ? "fill-slate-300 stroke-white opacity-40"
-                          : "fill-teal-600 stroke-white"
+                          ? "fill-slate-300 opacity-40"
+                          : markerColor
                     )}
                     strokeWidth={2}
                   />

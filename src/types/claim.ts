@@ -4,6 +4,18 @@ export type ProcessingStatus = "Processed" | "Pending" | "Failed";
 
 export type ConfidenceLevel = "High" | "Medium" | "Low";
 
+export type EventSeverity = "info" | "moderate" | "critical";
+
+export type TimelineSourceFilter =
+  | "all"
+  | "video"
+  | "telematics"
+  | "gps"
+  | "police"
+  | "uploaded";
+
+export type SeverityFilter = "all" | "info" | "moderate" | "critical";
+
 export interface EvidenceMetadata {
   uploadedAt: string;
   fileSize: string;
@@ -29,13 +41,21 @@ export interface TimelineEvent {
   title: string;
   description: string;
   confidence: ConfidenceLevel;
+  severity: EventSeverity;
   linkedEvidenceIds: string[];
   notes: string;
   markerId: string;
   videoProgress: number;
+  videoOffsetSeconds: number;
   isUploadedTelemetry?: boolean;
   sortDate?: Date;
   rowIndex?: number;
+}
+
+export interface InvestigationNote {
+  id: string;
+  content: string;
+  createdAt: string;
 }
 
 export interface TelematicsRow {
@@ -63,6 +83,7 @@ export interface SpeedDataPoint {
   speed: number;
   markerId?: string;
   label?: string;
+  severity?: EventSeverity;
 }
 
 export interface MapMarker {
@@ -70,6 +91,14 @@ export interface MapMarker {
   label: string;
   x: number;
   y: number;
+  severity?: EventSeverity;
+}
+
+export interface InvestigationStats {
+  eventCount: number;
+  sourceCount: number;
+  durationSeconds: number;
+  peakSpeedMph: number;
 }
 
 export interface Claim {

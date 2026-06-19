@@ -129,12 +129,16 @@ export function MapPlaceholder({
                     cy={y}
                     r={isHighlighted ? 2.8 : 2.2}
                     className={cn(
-                      "transition-all duration-200",
+                      "transition-all duration-200 stroke-white",
                       isHighlighted
-                        ? "fill-amber-500 stroke-white"
+                        ? "fill-amber-500"
                         : highlightedMarkerId
-                          ? "fill-slate-400 stroke-white opacity-50"
-                          : "fill-blue-600 stroke-white"
+                          ? "fill-slate-400 opacity-50"
+                          : marker.severity === "critical"
+                            ? "fill-red-500"
+                            : marker.severity === "moderate"
+                              ? "fill-amber-500"
+                              : "fill-blue-600"
                     )}
                     strokeWidth="0.8"
                   />
@@ -143,7 +147,13 @@ export function MapPlaceholder({
                     y={y - 2}
                     className={cn(
                       "text-[3.2px] font-medium",
-                      isHighlighted ? "fill-amber-800" : "fill-slate-600"
+                      isHighlighted
+                        ? "fill-amber-800"
+                        : marker.severity === "critical"
+                          ? "fill-red-800"
+                          : marker.severity === "moderate"
+                            ? "fill-amber-800"
+                            : "fill-slate-600"
                     )}
                   >
                     {marker.label}

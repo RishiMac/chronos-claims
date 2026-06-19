@@ -75,6 +75,7 @@ export function telematicsRowsToSpeedData(
       speed: row.speedMph,
       markerId: event?.markerId,
       label: event ? shortEventLabel(event) : undefined,
+      severity: event?.severity,
     };
   });
 }
@@ -132,9 +133,10 @@ export function telematicsRowsToMapData(
         label: shortEventLabel(event),
         x: point.x,
         y: point.y,
+        severity: event.severity,
       };
     })
-    .filter((marker): marker is MapMarker => marker !== null);
+    .filter((marker) => marker !== null) as MapMarker[];
 
   return {
     route,

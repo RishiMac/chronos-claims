@@ -2,12 +2,14 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { severityStyles } from "@/lib/eventUtils";
 import { cn } from "@/lib/utils";
 import type { ConfidenceLevel, EvidenceFile, TimelineEvent } from "@/types/claim";
 
 interface EventDetailsCardProps {
-  event: TimelineEvent;
+  event: TimelineEvent | null;
   linkedEvidence: EvidenceFile[];
+  hiddenByFilter?: boolean;
 }
 
 const confidenceStyles: Record<ConfidenceLevel, string> = {
@@ -19,7 +21,25 @@ const confidenceStyles: Record<ConfidenceLevel, string> = {
 export function EventDetailsCard({
   event,
   linkedEvidence,
+  hiddenByFilter = false,
 }: EventDetailsCardProps) {
+  if (!event) {
+    return (
+      <Card className="border-slate-200 shadow-none">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-3 py-2.5">
+          <CardTitle className="text-[13px] font-medium text-slate-900">
+            Selected Event Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <p className="text-[13px] text-muted-foreground">
+            Select an event to synchronize the investigation workspace.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="border-slate-200 shadow-none">
       <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-3 py-2.5">
@@ -28,6 +48,12 @@ export function EventDetailsCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 p-3">
+        {hiddenByFilter && (
+          <p className="text-[11px] text-amber-700">
+            Selected event is hidden by current filters.
+          </p>
+        )}
+
         <div>
           <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
             {event.timestamp}
@@ -41,10 +67,26 @@ export function EventDetailsCard({
         </div>
 
         <div className="flex items-center justify-between gap-3">
+          <span className="text-[12px] text-slate-500">Severity</span>
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-5 text-[11px] font-normal",
+              severityStyles[event.severity].badge
+            )}
+          >
+            {severityStyles[event.severity].label}
+          </Badge>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
           <span className="text-[12px] text-slate-500">Confidence</span>
           <Badge
             variant="outline"
-            className={cn("h-5 text-[11px] font-normal", confidenceStyles[event.confidence])}
+            className={cn(
+              "h-5 text-[11px] font-normal",
+              confidenceStyles[event.confidence]
+            )}
           >
             {event.confidence}
           </Badge>

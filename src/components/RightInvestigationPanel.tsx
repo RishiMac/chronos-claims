@@ -5,7 +5,13 @@ import { useCallback, useRef, useState } from "react";
 import { EventDetailsCard } from "@/components/EventDetailsCard";
 import { TimelinePanel } from "@/components/TimelinePanel";
 import { cn } from "@/lib/utils";
-import type { EvidenceFile, TimelineEvent } from "@/types/claim";
+import type {
+  EvidenceFile,
+  InvestigationStats,
+  SeverityFilter,
+  TimelineEvent,
+  TimelineSourceFilter,
+} from "@/types/claim";
 
 const MIN_PANEL_HEIGHT = 180;
 const DEFAULT_TIMELINE_RATIO = 0.55;
@@ -14,9 +20,15 @@ interface RightInvestigationPanelProps {
   events: TimelineEvent[];
   evidenceFiles: EvidenceFile[];
   selectedEventId: string;
-  selectedEvent: TimelineEvent;
+  selectedEvent: TimelineEvent | null;
   linkedEvidence: EvidenceFile[];
   onSelectEvent: (id: string) => void;
+  sourceFilter: TimelineSourceFilter;
+  severityFilter: SeverityFilter;
+  onSourceFilterChange: (filter: TimelineSourceFilter) => void;
+  onSeverityFilterChange: (filter: SeverityFilter) => void;
+  stats: InvestigationStats;
+  selectedEventHiddenByFilter: boolean;
 }
 
 export function RightInvestigationPanel({
@@ -26,6 +38,12 @@ export function RightInvestigationPanel({
   selectedEvent,
   linkedEvidence,
   onSelectEvent,
+  sourceFilter,
+  severityFilter,
+  onSourceFilterChange,
+  onSeverityFilterChange,
+  stats,
+  selectedEventHiddenByFilter,
 }: RightInvestigationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timelineRatio, setTimelineRatio] = useState(DEFAULT_TIMELINE_RATIO);
@@ -81,6 +99,12 @@ export function RightInvestigationPanel({
           evidenceFiles={evidenceFiles}
           selectedEventId={selectedEventId}
           onSelectEvent={onSelectEvent}
+          sourceFilter={sourceFilter}
+          severityFilter={severityFilter}
+          onSourceFilterChange={onSourceFilterChange}
+          onSeverityFilterChange={onSeverityFilterChange}
+          stats={stats}
+          selectedEventHiddenByFilter={selectedEventHiddenByFilter}
         />
       </div>
 
@@ -111,6 +135,7 @@ export function RightInvestigationPanel({
           <EventDetailsCard
             event={selectedEvent}
             linkedEvidence={linkedEvidence}
+            hiddenByFilter={selectedEventHiddenByFilter}
           />
         </div>
       </div>

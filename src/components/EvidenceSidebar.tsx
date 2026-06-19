@@ -26,6 +26,7 @@ interface EvidenceSidebarProps {
   uploadState: TelematicsUploadState;
   uploadError: string | null;
   processedFileName: string | null;
+  hasUploadedTelematics: boolean;
   onUploadCsv: (file: File) => void;
   onLoadSampleCsv: () => void;
 }
@@ -53,6 +54,7 @@ export function EvidenceSidebar({
   uploadState,
   uploadError,
   processedFileName,
+  hasUploadedTelematics,
   onUploadCsv,
   onLoadSampleCsv,
 }: EvidenceSidebarProps) {
@@ -133,6 +135,13 @@ export function EvidenceSidebar({
         {uploadState === "error" && uploadError && (
           <p className="mt-2 text-[11px] leading-snug text-red-600">
             {uploadError}
+          </p>
+        )}
+
+        {!hasUploadedTelematics && uploadState !== "processed" && (
+          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+            Using sample claim data. Upload a telematics CSV to generate events
+            from real evidence.
           </p>
         )}
       </div>

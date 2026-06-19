@@ -103,6 +103,8 @@ export const mockClaim: Claim = {
       notes: "Speed reading corroborated across telematics and GPS velocity fields.",
       markerId: "start",
       videoProgress: 18,
+      videoOffsetSeconds: 4,
+      severity: "info",
     },
     {
       id: "evt-intersection",
@@ -115,6 +117,8 @@ export const mockClaim: Claim = {
       notes: "Cross-reference dashcam timestamp with GPS geofence for intersection.",
       markerId: "intersection",
       videoProgress: 42,
+      videoOffsetSeconds: 10,
+      severity: "info",
     },
     {
       id: "evt-braking",
@@ -127,6 +131,8 @@ export const mockClaim: Claim = {
       notes: "Deceleration spike visible in telematics row at 14:41:20.",
       markerId: "braking",
       videoProgress: 58,
+      videoOffsetSeconds: 12,
+      severity: "moderate",
     },
     {
       id: "evt-impact",
@@ -139,6 +145,8 @@ export const mockClaim: Claim = {
       notes: "Police report references contact at intersection; verify against dashcam frame.",
       markerId: "impact",
       videoProgress: 72,
+      videoOffsetSeconds: 13,
+      severity: "critical",
     },
     {
       id: "evt-stopped",
@@ -151,6 +159,8 @@ export const mockClaim: Claim = {
       notes: "Post-stop position matches police report scene diagram reference.",
       markerId: "stop",
       videoProgress: 88,
+      videoOffsetSeconds: 16,
+      severity: "info",
     },
   ],
   speedData: [

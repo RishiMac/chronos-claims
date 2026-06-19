@@ -27,6 +27,7 @@ export function detectTelematicsEvents(
       title: "Peak speed recorded",
       description: `Telematics export shows peak recorded speed of ${peakRow.speedMph} mph during the uploaded incident window.`,
       confidence: "High",
+      severity: "info",
       evidenceFileId,
       start,
       end,
@@ -46,6 +47,7 @@ export function detectTelematicsEvents(
         title: "Hard braking detected",
         description: `Telematics export shows speed decreased from ${hardBraking.fromSpeed} mph to ${hardBraking.toSpeed} mph over ${hardBraking.durationSeconds.toFixed(1)} seconds.`,
         confidence: hardBraking.confidence,
+        severity: "moderate",
         evidenceFileId,
         start,
         end,
@@ -68,6 +70,7 @@ export function detectTelematicsEvents(
         description:
           "Telematics export shows vehicle speed reached 0 mph or near-zero speed.",
         confidence: "High",
+        severity: "info",
         evidenceFileId,
         start,
         end,
@@ -133,6 +136,7 @@ function buildEvent({
   title,
   description,
   confidence,
+  severity,
   evidenceFileId,
   start,
   end,
@@ -145,11 +149,15 @@ function buildEvent({
   title: string;
   description: string;
   confidence: ConfidenceLevel;
+  severity: TimelineEvent["severity"];
   evidenceFileId: string;
   start: Date;
   end: Date;
   notes: string;
 }): TimelineEvent {
+  const videoOffsetSeconds =
+    (row.date.getTime() - start.getTime()) / 1000;
+
   return {
     id,
     markerId,
@@ -158,11 +166,13 @@ function buildEvent({
     title,
     description,
     confidence,
+    severity,
     linkedEvidenceIds: [evidenceFileId],
     notes,
     isUploadedTelemetry: true,
     sortDate: row.date,
     videoProgress: computeVideoProgress(row.date, start, end),
+    videoOffsetSeconds,
   };
 }
 
