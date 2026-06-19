@@ -1,0 +1,88 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import type { ConfidenceLevel, EvidenceFile, TimelineEvent } from "@/types/claim";
+
+interface EventDetailsCardProps {
+  event: TimelineEvent;
+  linkedEvidence: EvidenceFile[];
+}
+
+const confidenceStyles: Record<ConfidenceLevel, string> = {
+  High: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Medium: "bg-amber-50 text-amber-700 border-amber-200",
+  Low: "bg-slate-100 text-slate-600 border-slate-200",
+};
+
+export function EventDetailsCard({
+  event,
+  linkedEvidence,
+}: EventDetailsCardProps) {
+  return (
+    <Card className="border-slate-200 shadow-none">
+      <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-3 py-2.5">
+        <CardTitle className="text-[13px] font-medium text-slate-900">
+          Selected Event Details
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 p-3">
+        <div>
+          <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            {event.timestamp}
+          </p>
+          <p className="mt-0.5 text-[13px] font-medium text-slate-900">
+            {event.title}
+          </p>
+          <p className="mt-1.5 text-[13px] leading-snug text-slate-600">
+            {event.description}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[12px] text-slate-500">Confidence</span>
+          <Badge
+            variant="outline"
+            className={cn("h-5 text-[11px] font-normal", confidenceStyles[event.confidence])}
+          >
+            {event.confidence}
+          </Badge>
+        </div>
+
+        <div>
+          <p className="text-[12px] text-slate-500">Source references</p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {linkedEvidence.map((file) => (
+              <Badge
+                key={file.id}
+                variant="secondary"
+                className="h-4 bg-slate-100 px-1.5 text-[10px] font-normal text-slate-600"
+              >
+                {file.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="event-notes"
+            className="text-[12px] text-slate-500"
+          >
+            Review notes
+          </label>
+          <div
+            id="event-notes"
+            className="mt-1.5 min-h-16 rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-2.5 py-2 text-[12px] leading-snug text-slate-500"
+          >
+            {event.notes}
+            <span className="mt-1.5 block text-slate-400">
+              Add reviewer notes here (placeholder)
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
