@@ -12,12 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { SharePackage } from "@/types/share-package";
 
 interface SharePackageModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   shareUrl: string;
   claimId: string;
+  sharePackage: SharePackage | null;
 }
 
 export function SharePackageModal({
@@ -25,11 +27,13 @@ export function SharePackageModal({
   onOpenChange,
   shareUrl,
   claimId,
+  sharePackage,
 }: SharePackageModalProps) {
   const [copied, setCopied] = useState(false);
+  const displayUrl = sharePackage?.url ?? shareUrl;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(shareUrl);
+    await navigator.clipboard.writeText(displayUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -58,11 +62,19 @@ export function SharePackageModal({
           <p className="text-xs font-medium text-slate-500">
             Secure share link — Claim {claimId}
           </p>
+          {sharePackage && (
+            <p className="text-[11px] text-muted-foreground">
+              Created {new Date(sharePackage.createdAt).toLocaleString()} · Expires{" "}
+              {new Date(sharePackage.expiresAt).toLocaleDateString()} ·{" "}
+              {sharePackage.includedEvidenceIds.length} evidence files ·{" "}
+              {sharePackage.includedEventIds.length} events
+            </p>
+          )}
           <div className="flex items-center gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2">
               <Link2 className="size-4 shrink-0 text-slate-400" />
               <span className="truncate font-mono text-xs text-slate-700">
-                {shareUrl}
+                {displayUrl}
               </span>
             </div>
             <Button

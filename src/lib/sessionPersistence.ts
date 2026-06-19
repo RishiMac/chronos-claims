@@ -86,12 +86,25 @@ export function deserializeTelematics(
   return {
     evidenceId: serialized.evidenceId,
     fileName: serialized.fileName,
+    format: serialized.format ?? "generic",
+    records: rows,
     rows,
     uploadedAt: serialized.uploadedAt,
     timeRange: serialized.timeRange,
     detectedEvents,
     hasGpsCoordinates: serialized.hasGpsCoordinates,
     warnings: serialized.warnings,
+    metrics:
+      serialized.metrics ?? {
+        peakSpeedMph: rows.length
+          ? Math.max(...rows.map((row) => row.speedMph))
+          : 0,
+        averageSpeedMph: 0,
+        distanceMiles: 0,
+        durationSeconds: 0,
+        hardBrakingEventCount: 0,
+        stopCount: 0,
+      },
   };
 }
 
@@ -108,10 +121,12 @@ function serializeTelematics(parsed: ParsedTelematics): SerializedTelematics {
   return {
     evidenceId: parsed.evidenceId,
     fileName: parsed.fileName,
+    format: parsed.format,
     uploadedAt: parsed.uploadedAt,
     timeRange: parsed.timeRange,
     hasGpsCoordinates: parsed.hasGpsCoordinates,
     warnings: parsed.warnings,
+    metrics: parsed.metrics,
     rows: parsed.rows.map((row) => ({
       timestamp: row.timestamp,
       date: row.date.toISOString(),
@@ -120,6 +135,7 @@ function serializeTelematics(parsed: ParsedTelematics): SerializedTelematics {
       longitude: row.longitude,
       brakeStatus: row.brakeStatus,
       acceleration: row.acceleration,
+      heading: row.heading,
     })),
     detectedEvents: parsed.detectedEvents.map(serializeTimelineEvent),
   };

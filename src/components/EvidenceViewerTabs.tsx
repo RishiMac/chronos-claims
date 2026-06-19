@@ -7,7 +7,7 @@ import { ImageEvidenceViewer } from "@/components/ImageEvidenceViewer";
 import { InvestigationNotesPanel } from "@/components/InvestigationNotesPanel";
 import { MapPlaceholder } from "@/components/MapPlaceholder";
 import { PdfEvidenceViewer } from "@/components/PdfEvidenceViewer";
-import { SpeedGraph } from "@/components/SpeedGraph";
+import { TelemetryPanel } from "@/components/TelemetryPanel";
 import { TextEvidenceViewer } from "@/components/TextEvidenceViewer";
 import { VideoViewer } from "@/components/VideoViewer";
 import { cn } from "@/lib/utils";
@@ -189,18 +189,12 @@ export function EvidenceViewerTabs({
         {activeTab === "video" && renderVideoTabContent()}
 
         {activeTab === "telemetry" && (
-          <div className="space-y-3">
-            {!hasUploadedTelematics && (
-              <p className="text-[12px] text-muted-foreground">
-                Using sample claim data. Upload a telematics CSV to generate
-                events from real evidence.
-              </p>
-            )}
-            <SpeedGraph
-              data={speedData}
-              highlightedMarkerId={selectedEvent?.markerId ?? null}
-            />
-          </div>
+          <TelemetryPanel
+            speedData={speedData}
+            parsedTelematics={parsedTelematics}
+            selectedEvent={selectedEvent}
+            hasUploadedTelematics={hasUploadedTelematics}
+          />
         )}
 
         {activeTab === "map" && (

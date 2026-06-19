@@ -68,18 +68,6 @@ export interface TimelineEvent {
   rowIndex?: number;
 }
 
-export interface InvestigationNote {
-  id: string;
-  content: string;
-  createdAt: string;
-}
-
-export interface SessionActivityEntry {
-  id: string;
-  timestamp: string;
-  message: string;
-}
-
 export interface TelematicsRow {
   timestamp: string;
   date: Date;
@@ -88,17 +76,21 @@ export interface TelematicsRow {
   longitude?: number;
   brakeStatus?: boolean;
   acceleration?: number;
+  heading?: number;
 }
 
 export interface ParsedTelematics {
   evidenceId: string;
   fileName: string;
+  format: import("@/types/telemetry").TelematicsFormat;
+  records: TelematicsRow[];
   rows: TelematicsRow[];
   uploadedAt: string;
   timeRange: { start: string; end: string };
   detectedEvents: TimelineEvent[];
   hasGpsCoordinates: boolean;
   warnings: string[];
+  metrics: import("@/types/telemetry").TelemetryMetrics;
 }
 
 export type TelematicsUploadState = "idle" | "parsing" | "processed" | "error";
@@ -136,8 +128,8 @@ export interface InvestigationSessionExport {
   severityFilter: SeverityFilter;
   searchQuery: string;
   notesDraft: string;
-  notes: InvestigationNote[];
-  activityLog: SessionActivityEntry[];
+  notes: import("@/types/investigation-note").InvestigationNote[];
+  activityLog: import("@/types/audit-activity").SessionActivityEntry[];
   evidenceFiles: EvidenceFile[];
   telematics: SerializedTelematics[];
   timelineEvents: Array<Omit<TimelineEvent, "sortDate"> & { sortDate?: string }>;
@@ -146,10 +138,12 @@ export interface InvestigationSessionExport {
 export interface SerializedTelematics {
   evidenceId: string;
   fileName: string;
+  format: import("@/types/telemetry").TelematicsFormat;
   uploadedAt: string;
   timeRange: { start: string; end: string };
   hasGpsCoordinates: boolean;
   warnings: string[];
+  metrics: import("@/types/telemetry").TelemetryMetrics;
   rows: Array<{
     timestamp: string;
     date: string;
@@ -158,6 +152,7 @@ export interface SerializedTelematics {
     longitude?: number;
     brakeStatus?: boolean;
     acceleration?: number;
+    heading?: number;
   }>;
   detectedEvents: Array<Omit<TimelineEvent, "sortDate"> & { sortDate?: string }>;
 }
@@ -190,3 +185,11 @@ export interface Claim {
   defaultSelectedEvidenceId: string;
   mapRouteLabel: string;
 }
+
+export type { InvestigationNote } from "@/types/investigation-note";
+export type {
+  AuditActivity,
+  SessionActivityEntry,
+} from "@/types/audit-activity";
+export type { SharePackage } from "@/types/share-package";
+export type { StoredClaim } from "@/types/stored-claim";

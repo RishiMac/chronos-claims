@@ -8,11 +8,13 @@ import { Header } from "@/components/Header";
 import { RightInvestigationPanel } from "@/components/RightInvestigationPanel";
 import { SharePackageModal } from "@/components/SharePackageModal";
 import { DEMO_VIDEO_SRC } from "@/components/VideoViewer";
+import { getDefaultClaim } from "@/data/sampleClaims";
+import { formatClaimDisplayTitle } from "@/lib/claimDisplay";
 import {
-  defaultClaimId,
-  getClaimById,
-  getDefaultClaim,
-} from "@/data/sampleClaims";
+  createActivityEntry,
+  getClaimFromCatalog,
+  useChronosPersistence,
+} from "@/hooks/useChronosPersistence";
 import { detectTelematicsEvents } from "@/lib/detectTelematicsEvents";
 import {
   createPreviewObjectUrl,
@@ -29,7 +31,6 @@ import {
   computeVideoDuration,
   filterTimelineEvents,
   findActiveEventForPlayback,
-  formatActivityTimestamp,
 } from "@/lib/eventUtils";
 import { useInvestigationKeyboard } from "@/hooks/useInvestigationKeyboard";
 import {
@@ -47,6 +48,29 @@ import {
   parseSessionImport,
 } from "@/lib/sessionPersistence";
 import {
+  buildInitialNotesFromSampleClaims,
+  buildSampleStoredClaims,
+  createEmptyClaim,
+  duplicateStoredClaim,
+  renameStoredClaim,
+} from "@/lib/storage/claimOperations";
+import {
+  serializeTelematicsMap,
+  workspaceFromStored,
+} from "@/lib/storage/claimSerializer";
+import { resetStorage } from "@/lib/storage/chronosStorage";
+import {
+  createSharePackage,
+  getLatestSharePackageForClaim,
+} from "@/lib/storage/sharePackageHelpers";
+import {
+  fromInvestigationNote,
+  toInvestigationNote,
+} from "@/types/investigation-note";
+import type { AuditActivityType } from "@/types/audit-activity";
+import type { SharePackage } from "@/types/share-package";
+import type { StoredClaim } from "@/types/stored-claim";
+import {
   buildParsedTelematics,
   collectUploadedTimelineEvents,
   enrichTelematicsEvidenceFile,
@@ -57,7 +81,6 @@ import {
 import type {
   Claim,
   EvidenceFile,
-  InvestigationNote,
   ParsedTelematics,
   SessionActivityEntry,
   SeverityFilter,
@@ -70,14 +93,6 @@ function createEvidenceId() {
   return `ev-upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function observationsToNotes(claim: Claim) {
-  return claim.sampleObservations.map((observation) => ({
-    id: observation.id,
-    content: observation.content,
-    createdAt: observation.createdAt,
-  }));
-}
-
 function getDefaultVideoOffset(claim: Claim) {
   const event = claim.timelineEvents.find(
     (item) => item.id === claim.defaultSelectedEventId
@@ -86,14 +101,33 @@ function getDefaultVideoOffset(claim: Claim) {
 }
 
 export function InvestigationWorkspace() {
-  const [activeClaimId, setActiveClaimId] = useState(defaultClaimId);
+  const {
+    hydrated,
+    storedClaims,
+    setStoredClaims,
+    selectedClaimId,
+    setSelectedClaimId,
+    allNotes,
+    setAllNotes,
+    allActivities,
+    setAllActivities,
+    sharePackages,
+    setSharePackages,
+    updateStoredClaimWorkspace,
+  } = useChronosPersistence();
+
+  const activeClaimId = selectedClaimId;
+  const claimsCatalog = useMemo(
+    () => storedClaims.map((item) => item.claim),
+    [storedClaims]
+  );
   const activeClaim = useMemo(
-    () => getClaimById(activeClaimId),
-    [activeClaimId]
+    () =>
+      getClaimFromCatalog(storedClaims, activeClaimId) ?? getDefaultClaim(),
+    [storedClaims, activeClaimId]
   );
-  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(
-    getDefaultClaim().evidenceFiles
-  );
+
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
   const [telematicsByEvidenceId, setTelematicsByEvidenceId] = useState<
     Record<string, ParsedTelematics>
   >({});
@@ -104,50 +138,141 @@ export function InvestigationWorkspace() {
     null
   );
   const [sampleEvidenceLoaded, setSampleEvidenceLoaded] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState(
-    getDefaultClaim().defaultSelectedEventId
-  );
+  const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(
-    getDefaultClaim().defaultSelectedEvidenceId
+    null
   );
   const [activeVideoEvidenceId, setActiveVideoEvidenceId] = useState<
     string | null
   >(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [modalSharePackage, setModalSharePackage] = useState<SharePackage | null>(
+    null
+  );
   const [sourceFilter, setSourceFilter] =
     useState<TimelineSourceFilter>("all");
   const [severityFilter, setSeverityFilter] =
     useState<SeverityFilter>("all");
-  const [currentVideoTime, setCurrentVideoTime] = useState(() =>
-    getDefaultVideoOffset(getDefaultClaim())
-  );
+  const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(18);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoSourceLoaded, setVideoSourceLoaded] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [notesDraft, setNotesDraft] = useState("");
-  const [investigationNotes, setInvestigationNotes] = useState<
-    InvestigationNote[]
-  >(() => observationsToNotes(getDefaultClaim()));
-  const [activityLog, setActivityLog] = useState<SessionActivityEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const playbackIntervalRef = useRef<number | null>(null);
   const objectUrlsRef = useRef<Map<string, string>>(new Map());
+  const workspaceLoadedRef = useRef(false);
+
+  const investigationNotes = useMemo(
+    () =>
+      allNotes
+        .filter((note) => note.claimId === activeClaimId)
+        .map(toInvestigationNote),
+    [allNotes, activeClaimId]
+  );
+
+  const activityLog = useMemo<SessionActivityEntry[]>(
+    () =>
+      allActivities
+        .filter((entry) => entry.claimId === activeClaimId)
+        .map(({ id, timestamp, message }) => ({ id, timestamp, message })),
+    [allActivities, activeClaimId]
+  );
+
+  const latestSharePackage = useMemo(
+    () => getLatestSharePackageForClaim(sharePackages, activeClaimId),
+    [sharePackages, activeClaimId]
+  );
+
+  const loadWorkspaceFromStored = useCallback((stored: StoredClaim) => {
+    const workspace = workspaceFromStored(stored);
+    setEvidenceFiles(workspace.evidenceFiles);
+    setTelematicsByEvidenceId(workspace.telematicsByEvidenceId);
+    setSelectedEventId(
+      workspace.selectedEventId || stored.claim.defaultSelectedEventId
+    );
+    setSelectedEvidenceId(
+      workspace.selectedEvidenceId ?? stored.claim.defaultSelectedEvidenceId
+    );
+    setActiveVideoEvidenceId(workspace.activeVideoEvidenceId);
+    setSampleEvidenceLoaded(workspace.sampleEvidenceLoaded);
+    setNotesDraft(workspace.notesDraft);
+    setSourceFilter(workspace.sourceFilter);
+    setSeverityFilter(workspace.severityFilter);
+    setSearchQuery(workspace.searchQuery);
+    setCurrentVideoTime(getDefaultVideoOffset(stored.claim));
+    setIsVideoPlaying(false);
+    setVideoSourceLoaded(false);
+    setUploadState("idle");
+    setUploadError(null);
+    setUploadWarnings([]);
+    setProcessedFileName(null);
+    setImportMessage(null);
+  }, []);
+
+  const logActivity = useCallback(
+    (message: string, type: AuditActivityType = "general") => {
+      if (!activeClaimId) return;
+      const entry = createActivityEntry(activeClaimId, message, type);
+      setAllActivities((previous) => [entry, ...previous]);
+    },
+    [activeClaimId, setAllActivities]
+  );
 
   const hasUploadedTelematics =
     Object.keys(telematicsByEvidenceId).length > 0;
 
-  const logActivity = useCallback((message: string) => {
-    setActivityLog((previous) => [
-      {
-        id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        timestamp: formatActivityTimestamp(),
-        message,
-      },
-      ...previous,
-    ]);
-  }, []);
+  useEffect(() => {
+    if (!hydrated || workspaceLoadedRef.current) return;
+    const stored =
+      storedClaims.find((item) => item.claim.id === selectedClaimId) ??
+      storedClaims[0];
+    if (stored) {
+      loadWorkspaceFromStored(stored);
+      if (!selectedClaimId) {
+        setSelectedClaimId(stored.claim.id);
+      }
+    }
+    workspaceLoadedRef.current = true;
+  }, [
+    hydrated,
+    storedClaims,
+    selectedClaimId,
+    loadWorkspaceFromStored,
+    setSelectedClaimId,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated || !workspaceLoadedRef.current || !activeClaimId) return;
+    updateStoredClaimWorkspace(activeClaimId, {
+      evidenceFiles,
+      telematicsByEvidenceId,
+      selectedEventId,
+      selectedEvidenceId,
+      activeVideoEvidenceId,
+      sampleEvidenceLoaded,
+      notesDraft,
+      sourceFilter,
+      severityFilter,
+      searchQuery,
+    });
+  }, [
+    hydrated,
+    activeClaimId,
+    evidenceFiles,
+    telematicsByEvidenceId,
+    selectedEventId,
+    selectedEvidenceId,
+    activeVideoEvidenceId,
+    sampleEvidenceLoaded,
+    notesDraft,
+    sourceFilter,
+    severityFilter,
+    searchQuery,
+    updateStoredClaimWorkspace,
+  ]);
 
   const activeTelematics = useMemo(() => {
     if (
@@ -330,7 +455,7 @@ export function InvestigationWorkspace() {
       setSelectedEventId(eventId);
       if (event) {
         setCurrentVideoTime(event.videoOffsetSeconds);
-        logActivity(`Viewed event: ${event.title}`);
+        logActivity(`Viewed event: ${event.title}`, "viewed_event");
       }
     },
     [timelineEvents, logActivity]
@@ -472,7 +597,7 @@ export function InvestigationWorkspace() {
           setCurrentVideoTime(detectedEvents[0].videoOffsetSeconds);
         }
 
-        logActivity(`Processed telematics CSV: ${fileName}`);
+        logActivity(`Processed telematics CSV: ${fileName}`, "uploaded_csv");
       } catch (error) {
         const message =
           error instanceof TelematicsParseError
@@ -485,41 +610,132 @@ export function InvestigationWorkspace() {
     [logActivity]
   );
 
-  const applyClaimBaseline = useCallback((claim: Claim) => {
-    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    objectUrlsRef.current.clear();
-
-    setActiveClaimId(claim.id);
-    setEvidenceFiles(claim.evidenceFiles);
-    setTelematicsByEvidenceId({});
-    setSampleEvidenceLoaded(false);
-    setSelectedEventId(claim.defaultSelectedEventId);
-    setSelectedEvidenceId(claim.defaultSelectedEvidenceId);
-    setActiveVideoEvidenceId(null);
-    setCurrentVideoTime(getDefaultVideoOffset(claim));
-    setIsVideoPlaying(false);
-    setVideoSourceLoaded(false);
-    setNotesDraft("");
-    setInvestigationNotes(observationsToNotes(claim));
-    setActivityLog([]);
-    setSourceFilter("all");
-    setSeverityFilter("all");
-    setSearchQuery("");
-    setUploadState("idle");
-    setUploadError(null);
-    setUploadWarnings([]);
-    setProcessedFileName(null);
-    setImportMessage(null);
-  }, []);
+  const applyClaimBaseline = useCallback(
+    (stored: StoredClaim) => {
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current.clear();
+      setSelectedClaimId(stored.claim.id);
+      loadWorkspaceFromStored(stored);
+    },
+    [loadWorkspaceFromStored, setSelectedClaimId]
+  );
 
   const handleClaimChange = useCallback(
     (claimId: string) => {
-      const claim = getClaimById(claimId);
-      applyClaimBaseline(claim);
-      logActivity(`Switched to claim ${claim.id}`);
+      const stored = storedClaims.find((item) => item.claim.id === claimId);
+      if (!stored) return;
+      applyClaimBaseline(stored);
+      logActivity(`Switched to claim ${claimId}`, "switched_claim");
     },
-    [applyClaimBaseline, logActivity]
+    [storedClaims, applyClaimBaseline, logActivity]
   );
+
+  const handleCreateClaim = useCallback(() => {
+    const stored = createEmptyClaim();
+    setStoredClaims((current) => [...current, stored]);
+    applyClaimBaseline(stored);
+    logActivity("Created claim", "created_claim");
+  }, [setStoredClaims, applyClaimBaseline, logActivity]);
+
+  const handleRenameClaim = useCallback(() => {
+    const nextTitle = window.prompt("Claim title", activeClaim.title);
+    if (!nextTitle?.trim()) return;
+    setStoredClaims((current) =>
+      current.map((item) =>
+        item.claim.id === activeClaimId
+          ? renameStoredClaim(item, nextTitle.trim())
+          : item
+      )
+    );
+    logActivity(`Renamed claim to "${nextTitle.trim()}"`, "renamed_claim");
+  }, [activeClaim.title, activeClaimId, setStoredClaims, logActivity]);
+
+  const handleDuplicateClaim = useCallback(() => {
+    const source = storedClaims.find((item) => item.claim.id === activeClaimId);
+    if (!source) return;
+    const { stored, copiedNotes } = duplicateStoredClaim(source, allNotes);
+    setStoredClaims((current) => [...current, stored]);
+    setAllNotes((current) => [...current, ...copiedNotes]);
+    applyClaimBaseline(stored);
+    logActivity(`Duplicated claim ${activeClaimId}`, "duplicated_claim");
+  }, [
+    storedClaims,
+    activeClaimId,
+    allNotes,
+    setStoredClaims,
+    setAllNotes,
+    applyClaimBaseline,
+    logActivity,
+  ]);
+
+  const handleDeleteClaim = useCallback(() => {
+    if (storedClaims.length <= 1) {
+      window.alert("At least one claim must remain in the workspace.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete ${formatClaimDisplayTitle(activeClaim)}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const remaining = storedClaims.filter(
+      (item) => item.claim.id !== activeClaimId
+    );
+    setStoredClaims(remaining);
+    setAllNotes((current) =>
+      current.filter((note) => note.claimId !== activeClaimId)
+    );
+    setAllActivities((current) =>
+      current.filter((entry) => entry.claimId !== activeClaimId)
+    );
+    applyClaimBaseline(remaining[0]);
+    logActivity(`Deleted claim ${activeClaimId}`, "deleted_claim");
+  }, [
+    storedClaims,
+    activeClaimId,
+    activeClaim.title,
+    setStoredClaims,
+    setAllNotes,
+    setAllActivities,
+    applyClaimBaseline,
+    logActivity,
+  ]);
+
+  const handleResetDemo = useCallback(() => {
+    const confirmed = window.confirm(
+      "Reset all Chronos demo data? This clears local storage and restores sample claims."
+    );
+    if (!confirmed) return;
+
+    resetStorage();
+    const defaults = buildSampleStoredClaims();
+    const sampleNotes = buildInitialNotesFromSampleClaims();
+    setStoredClaims(defaults);
+    setAllNotes(sampleNotes);
+    setAllActivities([]);
+    setSharePackages([]);
+    setSelectedClaimId(defaults[0].claim.id);
+    applyClaimBaseline(defaults[0]);
+    logActivity("Reset demo data", "general");
+  }, [
+    setStoredClaims,
+    setAllNotes,
+    setAllActivities,
+    setSharePackages,
+    setSelectedClaimId,
+    applyClaimBaseline,
+    logActivity,
+  ]);
+
+  const handleLoadSampleClaims = useCallback(() => {
+    const defaults = buildSampleStoredClaims();
+    const sampleNotes = buildInitialNotesFromSampleClaims();
+    setStoredClaims(defaults);
+    setAllNotes(sampleNotes);
+    setSelectedClaimId(defaults[0].claim.id);
+    applyClaimBaseline(defaults[0]);
+    logActivity("Loaded sample claims", "general");
+  }, [setStoredClaims, setAllNotes, setSelectedClaimId, applyClaimBaseline, logActivity]);
 
   const processUploadedFile = useCallback(
     async (file: File) => {
@@ -719,7 +935,7 @@ export function InvestigationWorkspace() {
         })
       );
       setSampleEvidenceLoaded(true);
-      logActivity(`Loaded sample evidence for ${activeClaim.id}`);
+      logActivity(`Loaded sample evidence for ${activeClaim.id}`, "loaded_sample_evidence");
     } catch (error) {
       const message =
         error instanceof Error
@@ -749,7 +965,7 @@ export function InvestigationWorkspace() {
     const content = notesDraft.trim();
     if (!content) return;
 
-    setInvestigationNotes((previous) => [
+    const note = fromInvestigationNote(
       {
         id: `note-${Date.now()}`,
         content,
@@ -761,11 +977,12 @@ export function InvestigationWorkspace() {
           hour12: true,
         }),
       },
-      ...previous,
-    ]);
-    logActivity("Saved investigation note");
+      activeClaimId
+    );
+    setAllNotes((previous) => [note, ...previous]);
+    logActivity("Saved investigation note", "saved_note");
     setNotesDraft("");
-  }, [notesDraft, logActivity]);
+  }, [notesDraft, activeClaimId, setAllNotes, logActivity]);
 
   const handleExportSession = useCallback(() => {
     const session = buildSessionExport({
@@ -827,8 +1044,26 @@ export function InvestigationWorkspace() {
         setSeverityFilter(session.severityFilter);
         setSearchQuery(session.searchQuery);
         setNotesDraft(session.notesDraft);
-        setInvestigationNotes(session.notes);
-        setActivityLog(session.activityLog);
+        setAllNotes((previous) => {
+          const others = previous.filter((note) => note.claimId !== activeClaimId);
+          const imported = session.notes.map((note) =>
+            fromInvestigationNote(note, activeClaimId)
+          );
+          return [...others, ...imported];
+        });
+        setAllActivities((previous) => {
+          const others = previous.filter(
+            (entry) => entry.claimId !== activeClaimId
+          );
+          const imported = session.activityLog.map((entry) => ({
+            id: entry.id,
+            claimId: activeClaimId,
+            timestamp: entry.timestamp,
+            message: entry.message,
+            type: entry.type ?? ("general" as const),
+          }));
+          return [...imported, ...others];
+        });
         setUploadState(importedEvidence.length > 0 ? "processed" : "idle");
         setUploadError(null);
         setUploadWarnings([]);
@@ -844,7 +1079,7 @@ export function InvestigationWorkspace() {
         setImportMessage(message);
       }
     },
-    [activeClaim.evidenceFiles, logActivity]
+    [activeClaim.evidenceFiles, activeClaimId, setAllNotes, setAllActivities, logActivity]
   );
 
   const handleTabChange = useCallback(
@@ -861,20 +1096,42 @@ export function InvestigationWorkspace() {
   );
 
   const handleShareOpen = useCallback(() => {
+    const sharePackage = createSharePackage({
+      claimId: activeClaimId,
+      shareUrl: activeClaim.shareUrl,
+      evidenceFiles,
+      timelineEvents,
+    });
+    setSharePackages((previous) => [...previous, sharePackage]);
+    setModalSharePackage(sharePackage);
     setShareModalOpen(true);
-    logActivity("Generated share package");
-  }, [logActivity]);
+    logActivity("Generated share package", "generated_share_package");
+  }, [
+    activeClaimId,
+    activeClaim.shareUrl,
+    evidenceFiles,
+    timelineEvents,
+    setSharePackages,
+    logActivity,
+  ]);
 
   const handleCopySummary = useCallback(() => {
-    logActivity("Copied event summary");
+    logActivity("Copied event summary", "copied_event_summary");
   }, [logActivity]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-slate-100/60">
       <Header
         claim={activeClaim}
+        claims={claimsCatalog}
         activeClaimId={activeClaimId}
         onClaimChange={handleClaimChange}
+        onCreateClaim={handleCreateClaim}
+        onRenameClaim={handleRenameClaim}
+        onDuplicateClaim={handleDuplicateClaim}
+        onDeleteClaim={handleDeleteClaim}
+        onResetDemo={handleResetDemo}
+        onLoadSampleClaims={handleLoadSampleClaims}
         onShareClick={handleShareOpen}
       />
 
@@ -958,6 +1215,7 @@ export function InvestigationWorkspace() {
         onOpenChange={setShareModalOpen}
         shareUrl={activeClaim.shareUrl}
         claimId={activeClaim.id}
+        sharePackage={modalSharePackage ?? latestSharePackage}
       />
     </div>
   );

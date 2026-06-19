@@ -142,20 +142,16 @@ export function computeInvestigationStats(
     }
   }
 
-  if (parsedTelematics && parsedTelematics.rows.length > 0) {
-    const start = parsedTelematics.rows[0].date.getTime();
+  if (parsedTelematics && parsedTelematics.records.length > 0) {
+    const metrics = parsedTelematics.metrics;
+    const start = parsedTelematics.records[0].date.getTime();
     const end =
-      parsedTelematics.rows[parsedTelematics.rows.length - 1].date.getTime();
+      parsedTelematics.records[parsedTelematics.records.length - 1].date.getTime();
     return {
       eventCount: events.length,
       sourceCount: sourceIds.size,
-      durationSeconds: Math.max(
-        1,
-        Math.round((end - start) / 1000)
-      ),
-      peakSpeedMph: Math.max(
-        ...parsedTelematics.rows.map((row) => row.speedMph)
-      ),
+      durationSeconds: metrics.durationSeconds || Math.max(1, Math.round((end - start) / 1000)),
+      peakSpeedMph: metrics.peakSpeedMph,
     };
   }
 
@@ -197,11 +193,8 @@ export function computeVideoDuration(
   events: TimelineEvent[],
   parsedTelematics: ParsedTelematics | null
 ): number {
-  if (parsedTelematics && parsedTelematics.rows.length > 0) {
-    const start = parsedTelematics.rows[0].date.getTime();
-    const end =
-      parsedTelematics.rows[parsedTelematics.rows.length - 1].date.getTime();
-    return Math.max(16, Math.round((end - start) / 1000) + 2);
+  if (parsedTelematics && parsedTelematics.records.length > 0) {
+    return Math.max(16, parsedTelematics.metrics.durationSeconds + 2);
   }
 
   const maxOffset = Math.max(...events.map((event) => event.videoOffsetSeconds));

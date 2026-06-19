@@ -1,4 +1,4 @@
-import { formatDisplayTime } from "@/lib/parseTelematicsCsv";
+import { formatDisplayTime } from "@/lib/telematics/csvUtils";
 import type {
   EvidenceFile,
   MapMarker,
@@ -7,27 +7,33 @@ import type {
   TimelineEvent,
   TelematicsRow,
 } from "@/types/claim";
+import type { TelematicsFormat, TelemetryMetrics } from "@/types/telemetry";
 
 export function buildParsedTelematics(
   evidenceId: string,
   parsed: {
     fileName: string;
-    rows: TelematicsRow[];
+    format: TelematicsFormat;
+    records: TelematicsRow[];
     uploadedAt: string;
     timeRange: { start: string; end: string };
     warnings: string[];
+    metrics: TelemetryMetrics;
   },
   detectedEvents: TimelineEvent[]
 ): ParsedTelematics {
   return {
     evidenceId,
     fileName: parsed.fileName,
-    rows: parsed.rows,
+    format: parsed.format,
+    records: parsed.records,
+    rows: parsed.records,
     uploadedAt: parsed.uploadedAt,
     timeRange: parsed.timeRange,
     detectedEvents,
     warnings: parsed.warnings,
-    hasGpsCoordinates: parsed.rows.some(
+    metrics: parsed.metrics,
+    hasGpsCoordinates: parsed.records.some(
       (row) => row.latitude !== undefined && row.longitude !== undefined
     ),
   };
@@ -51,8 +57,8 @@ export function enrichTelematicsEvidenceFile(
         : "Uploaded telematics CSV",
       description: evidence.isSampleFile
         ? evidence.metadata.description
-        : "Uploaded telemetry export parsed client-side to support synchronized review.",
-      recordCount: parsed.rows.length,
+        : `Uploaded ${parsed.format.replace("_", " ")} telemetry parsed and normalized client-side.`,
+      recordCount: parsed.records.length,
       timeRange: parsed.timeRange,
       detectedEventCount: parsed.detectedEvents.length,
       warnings: parsed.warnings.length > 0 ? parsed.warnings : undefined,
@@ -172,8 +178,11 @@ export function telematicsRowsToMapData(
 
 function shortEventLabel(event: TimelineEvent): string {
   if (event.title.includes("Peak")) return "Peak speed";
-  if (event.title.includes("braking")) return "Hard braking";
-  if (event.title.includes("stopped")) return "Stopped";
+  if (event.title.toLowerCase().includes("braking")) return "Hard braking";
+  if (event.title.toLowerCase().includes("acceleration")) return "Harsh accel";
+  if (event.title.toLowerCase().includes("near stop")) return "Near stop";
+  if (event.title.toLowerCase().includes("recovery")) return "Recovery";
+  if (event.title.toLowerCase().includes("stopped")) return "Stopped";
   return event.title;
 }
 

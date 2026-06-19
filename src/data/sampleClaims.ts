@@ -148,7 +148,7 @@ export const sampleClaims: Claim[] = [
   {
     id: "CC-2026-001",
     shortLabel: "Rear-End Collision",
-    title: "Claim #CC-2026-001 — Rear-End Collision",
+    title: "Rear-End Collision",
     status: "Evidence Review",
     incidentDateTime: "March 14, 2026 · 2:41 PM",
     vehicleId: "Unit FL-4472",
@@ -263,7 +263,7 @@ export const sampleClaims: Claim[] = [
   {
     id: "CC-2026-002",
     shortLabel: "Side-Impact Intersection",
-    title: "Claim #CC-2026-002 — Side-Impact Intersection Collision",
+    title: "Side-Impact Intersection Collision",
     status: "Evidence Review",
     incidentDateTime: "April 2, 2026 · 9:18 AM",
     vehicleId: "Unit UT-2188",
@@ -369,7 +369,7 @@ export const sampleClaims: Claim[] = [
   {
     id: "CC-2026-003",
     shortLabel: "Hard Braking Near Intersection",
-    title: "Claim #CC-2026-003 — Hard Braking Near Intersection",
+    title: "Hard Braking Near Intersection",
     status: "Evidence Review",
     incidentDateTime: "April 18, 2026 · 4:52 PM",
     vehicleId: "Unit DV-9031",
@@ -477,7 +477,7 @@ export const sampleClaims: Claim[] = [
   {
     id: "CC-2026-004",
     shortLabel: "Parking Lot Low-Speed",
-    title: "Claim #CC-2026-004 — Parking Lot Low-Speed Incident",
+    title: "Parking Lot Low-Speed Incident",
     status: "Evidence Review",
     incidentDateTime: "May 6, 2026 · 11:07 AM",
     vehicleId: "Unit MN-1045",

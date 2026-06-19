@@ -1,5 +1,6 @@
 "use client";
 
+import { formatLabelForFormat } from "@/lib/telematics/parseTelemetryCsv";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EvidenceFile, ParsedTelematics } from "@/types/claim";
 
@@ -41,6 +42,12 @@ export function CsvEvidenceViewer({
         <div className="rounded-md border border-slate-200 bg-white p-4 text-[12px] text-slate-600">
           <DetailRow label="Filename" value={file.name} />
           <DetailRow label="Source reference" value={file.metadata.source} />
+          {isLoaded && (
+            <DetailRow
+              label="Detected format"
+              value={formatLabelForFormat(parsedTelematics.format)}
+            />
+          )}
           <DetailRow
             label="Row count"
             value={rowCount !== undefined ? String(rowCount) : "Not loaded"}
