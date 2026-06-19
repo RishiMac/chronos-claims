@@ -17,6 +17,10 @@ export type AuditActivityAction =
   | "renamed_claim"
   | "duplicated_claim"
   | "switched_claim"
+  | "generated_ai_observations"
+  | "regenerated_ai_observations"
+  | "cleared_ai_observations"
+  | "generated_claim_summary"
   | "general";
 
 /** @deprecated Use AuditActivityAction */

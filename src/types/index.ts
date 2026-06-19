@@ -1,6 +1,17 @@
 export type { TelemetryRecord, TelemetryMetrics, TelematicsFormat } from "./telemetry";
 export type { User } from "./user";
 export type {
+  AiAnalysisResult,
+  AiConfidence,
+  AiExtraction,
+  AiObservation,
+  AiSourceType,
+  AiSummary,
+  AiTimelineEvent,
+  AiGenerationStatus,
+  StoredAiAnalysis,
+} from "./ai-types";
+export type {
   SharePackage,
   SharePackageCreateInput,
   SharePackageSettings,

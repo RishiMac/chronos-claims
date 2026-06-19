@@ -76,6 +76,8 @@ export function eventMatchesSourceFilter(
           file.id === "ev-police" ||
           file.name.toLowerCase().includes("police")
       );
+    case "ai":
+      return event.isAiGenerated === true;
     default:
       return true;
   }

@@ -1,3 +1,5 @@
+import type { EvidenceReference } from "@/types/evidence-reference";
+
 export type EvidenceFileType =
   | "pdf"
   | "video"
@@ -18,7 +20,8 @@ export type TimelineSourceFilter =
   | "telematics"
   | "gps"
   | "police"
-  | "uploaded";
+  | "uploaded"
+  | "ai";
 
 export type SeverityFilter = "all" | "info" | "moderate" | "critical";
 
@@ -64,6 +67,8 @@ export interface TimelineEvent {
   videoProgress: number;
   videoOffsetSeconds: number;
   isUploadedTelemetry?: boolean;
+  isAiGenerated?: boolean;
+  evidenceReferences?: EvidenceReference[];
   sortDate?: Date;
   rowIndex?: number;
 }

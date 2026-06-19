@@ -12,6 +12,7 @@ import type {
   TimelineEvent,
   TimelineSourceFilter,
 } from "@/types/claim";
+import type { EvidenceReference } from "@/types/evidence-reference";
 
 const MIN_PANEL_HEIGHT = 180;
 const DEFAULT_TIMELINE_RATIO = 0.55;
@@ -34,6 +35,8 @@ interface RightInvestigationPanelProps {
   isVideoPlaying: boolean;
   playbackEvent: TimelineEvent | null;
   onCopySummary?: () => void;
+  onPreviewEvidence?: (evidenceId: string) => void;
+  onOpenEvidenceReference?: (reference: EvidenceReference) => void;
 }
 
 export function RightInvestigationPanel({
@@ -54,6 +57,8 @@ export function RightInvestigationPanel({
   isVideoPlaying,
   playbackEvent,
   onCopySummary,
+  onPreviewEvidence,
+  onOpenEvidenceReference,
 }: RightInvestigationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timelineRatio, setTimelineRatio] = useState(DEFAULT_TIMELINE_RATIO);
@@ -119,6 +124,7 @@ export function RightInvestigationPanel({
           selectedEventHiddenByFilter={selectedEventHiddenByFilter}
           isVideoPlaying={isVideoPlaying}
           playbackEvent={playbackEvent}
+          onPreviewEvidence={onPreviewEvidence}
         />
       </div>
 
@@ -151,6 +157,8 @@ export function RightInvestigationPanel({
             linkedEvidence={linkedEvidence}
             hiddenByFilter={selectedEventHiddenByFilter}
             onCopySummary={onCopySummary}
+            onPreviewEvidence={onPreviewEvidence}
+            onOpenEvidenceReference={onOpenEvidenceReference}
           />
         </div>
       </div>

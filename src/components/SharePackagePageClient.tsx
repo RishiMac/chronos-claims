@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { SupportingEvidenceList } from "@/components/SupportingEvidenceList";
 import { PasscodeInput } from "@/components/PasscodeInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   verifyPasscodeHash,
   type SharePackageViewData,
 } from "@/lib/share/shareService";
+import { getEventEvidenceReferences } from "@/lib/evidenceReferenceUtils";
 
 interface SharePackagePageClientProps {
   token: string;
@@ -329,7 +331,13 @@ export function SharePackagePageClient({ token }: SharePackagePageClientProps) {
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {events.map((event) => (
+                  {events.map((event) => {
+                    const supportingReferences = getEventEvidenceReferences(
+                      event,
+                      evidence
+                    );
+
+                    return (
                     <li
                       key={event.id}
                       className="rounded-md border border-slate-200 bg-white px-3 py-2"
@@ -343,8 +351,22 @@ export function SharePackagePageClient({ token }: SharePackagePageClientProps) {
                       <p className="mt-0.5 text-[12px] leading-snug text-slate-600">
                         {event.description}
                       </p>
+                      {sections.evidenceList && supportingReferences.length > 0 && (
+                        <div className="mt-2 border-t border-slate-100 pt-2">
+                          <p className="text-[11px] font-medium text-slate-700">
+                            Supporting evidence
+                          </p>
+                          <div className="mt-1.5">
+                            <SupportingEvidenceList
+                              references={supportingReferences}
+                              compact
+                            />
+                          </div>
+                        </div>
+                      )}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </CardContent>

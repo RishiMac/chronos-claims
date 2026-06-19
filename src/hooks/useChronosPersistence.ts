@@ -124,6 +124,7 @@ export function useChronosPersistence() {
             sourceFilter: workspace.sourceFilter,
             severityFilter: workspace.severityFilter,
             searchQuery: workspace.searchQuery,
+            aiAnalysis: workspace.aiAnalysis ?? null,
           });
         })
       );

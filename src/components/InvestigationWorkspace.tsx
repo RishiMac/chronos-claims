@@ -9,6 +9,17 @@ import { RightInvestigationPanel } from "@/components/RightInvestigationPanel";
 import { SharePackageModal } from "@/components/SharePackageModal";
 import { DEMO_VIDEO_SRC } from "@/components/VideoViewer";
 import { getDefaultClaim } from "@/data/sampleClaims";
+import {
+  buildClearedAiAnalysis,
+  buildStoredAiAnalysis,
+  hasActiveAiContent,
+  normalizeStoredAiAnalysis,
+} from "@/lib/ai/aiService";
+import {
+  AI_NO_OBSERVATIONS_COPY,
+  AI_NO_TEXT_EVIDENCE_COPY,
+} from "@/lib/ai/constants";
+import { aiTimelineEventsToTimelineEvents } from "@/lib/ai/aiTimelineBridge";
 import { formatClaimDisplayTitle } from "@/lib/claimDisplay";
 import { createActivityEntry } from "@/lib/audit/activityUtils";
 import { detectTelematicsEvents } from "@/lib/detectTelematicsEvents";
@@ -39,7 +50,12 @@ import {
 } from "@/lib/parseTelematicsCsv";
 import {
   enrichSampleEvidencePreviews,
-  loadSampleTelematicsCsv,
+  fetchSampleTelematicsCsv,
+  hasSampleEvidenceLoaded,
+  resolveSampleEvidenceBundle,
+  SAMPLE_EVIDENCE_ALREADY_LOADED_MESSAGE,
+  SampleEvidenceFileMissingError,
+  SampleEvidenceUnexpectedError,
 } from "@/lib/sampleEvidenceLoader";
 import {
   buildSessionExport,
@@ -75,6 +91,8 @@ import {
   auditActivityToSessionEntry,
   type AuditActivityAction,
 } from "@/types/audit-activity";
+import type { StoredAiAnalysis } from "@/types/ai-types";
+import type { EvidenceReference } from "@/types/evidence-reference";
 import type { SharePackage } from "@/types/share-package";
 import type { StoredClaim } from "@/types/stored-claim";
 import {
@@ -168,6 +186,13 @@ export function InvestigationWorkspace() {
   const [notesDraft, setNotesDraft] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<StoredAiAnalysis | null>(null);
+  const [aiGenerationNotice, setAiGenerationNotice] = useState<string | null>(
+    null
+  );
+  const [activeViewerTab, setActiveViewerTab] = useState<ViewerTab>("video");
+  const [activeEvidenceReference, setActiveEvidenceReference] =
+    useState<EvidenceReference | null>(null);
   const playbackIntervalRef = useRef<number | null>(null);
   const objectUrlsRef = useRef<Map<string, string>>(new Map());
   const workspaceLoadedRef = useRef(false);
@@ -209,6 +234,10 @@ export function InvestigationWorkspace() {
     setSourceFilter(workspace.sourceFilter);
     setSeverityFilter(workspace.severityFilter);
     setSearchQuery(workspace.searchQuery);
+    setAiAnalysis(normalizeStoredAiAnalysis(workspace.aiAnalysis));
+    setAiGenerationNotice(null);
+    setActiveViewerTab("video");
+    setActiveEvidenceReference(null);
     setCurrentVideoTime(getDefaultVideoOffset(stored.claim));
     setIsVideoPlaying(false);
     setVideoSourceLoaded(false);
@@ -264,6 +293,7 @@ export function InvestigationWorkspace() {
       sourceFilter,
       severityFilter,
       searchQuery,
+      aiAnalysis,
     });
   }, [
     hydrated,
@@ -278,6 +308,7 @@ export function InvestigationWorkspace() {
     sourceFilter,
     severityFilter,
     searchQuery,
+    aiAnalysis,
     updateStoredClaimWorkspace,
   ]);
 
@@ -294,10 +325,23 @@ export function InvestigationWorkspace() {
   }, [selectedEvidenceId, telematicsByEvidenceId]);
 
   const timelineEvents = useMemo(() => {
+    let events = activeClaim.timelineEvents;
     const uploadedEvents = collectUploadedTimelineEvents(telematicsByEvidenceId);
-    if (uploadedEvents.length === 0) return activeClaim.timelineEvents;
-    return mergeTimelineEvents(activeClaim.timelineEvents, uploadedEvents);
-  }, [telematicsByEvidenceId, activeClaim.timelineEvents]);
+    if (uploadedEvents.length > 0) {
+      events = mergeTimelineEvents(events, uploadedEvents);
+    }
+    if (
+      aiAnalysis &&
+      hasActiveAiContent(aiAnalysis) &&
+      aiAnalysis.timelineEvents.length
+    ) {
+      events = mergeTimelineEvents(
+        events,
+        aiTimelineEventsToTimelineEvents(aiAnalysis.timelineEvents)
+      );
+    }
+    return events;
+  }, [telematicsByEvidenceId, activeClaim.timelineEvents, aiAnalysis]);
 
   const speedData = useMemo(() => {
     if (!activeTelematics) return activeClaim.speedData;
@@ -326,6 +370,11 @@ export function InvestigationWorkspace() {
     () => evidenceFiles.find((file) => file.id === selectedEvidenceId) ?? null,
     [evidenceFiles, selectedEvidenceId]
   );
+
+  const selectedParsedTelematics = useMemo(() => {
+    if (!selectedEvidenceId) return null;
+    return telematicsByEvidenceId[selectedEvidenceId] ?? null;
+  }, [selectedEvidenceId, telematicsByEvidenceId]);
 
   const activeVideoFile = useMemo(() => {
     if (activeVideoEvidenceId) {
@@ -471,15 +520,47 @@ export function InvestigationWorkspace() {
   const handleSelectEvidence = useCallback(
     (evidenceId: string) => {
       setSelectedEvidenceId(evidenceId);
+      setActiveEvidenceReference(null);
       const file = evidenceFiles.find((item) => item.id === evidenceId);
       if (file?.fileType === "video") {
         setActiveVideoEvidenceId(evidenceId);
+        setActiveViewerTab("video");
         logActivity("general", `Selected video evidence: ${file.name}`);
       } else if (file) {
+        setActiveViewerTab("evidence");
         logActivity("general", `Selected evidence file: ${file.name}`);
       }
     },
     [evidenceFiles, logActivity]
+  );
+
+  const handlePreviewEvidence = useCallback(
+    (evidenceId: string) => {
+      setSelectedEvidenceId(evidenceId);
+      setActiveEvidenceReference(null);
+      const file = evidenceFiles.find((item) => item.id === evidenceId);
+      if (file?.fileType === "video") {
+        setActiveVideoEvidenceId(evidenceId);
+      }
+      setActiveViewerTab("evidence");
+      if (file) {
+        logActivity("general", `Previewed evidence file: ${file.name}`);
+      }
+    },
+    [evidenceFiles, logActivity]
+  );
+
+  const handleOpenEvidenceReference = useCallback(
+    (reference: EvidenceReference) => {
+      setSelectedEvidenceId(reference.evidenceFileId);
+      setActiveEvidenceReference(reference);
+      setActiveViewerTab("evidence");
+      logActivity(
+        "general",
+        `Opened supporting source reference for ${reference.filename}`
+      );
+    },
+    [logActivity]
   );
 
   const handlePlayPause = useCallback(() => {
@@ -554,7 +635,7 @@ export function InvestigationWorkspace() {
       evidenceId: string,
       fileSizeBytes?: number,
       baseEvidence?: EvidenceFile
-    ) => {
+    ): Promise<boolean> => {
       setUploadState("parsing");
       setUploadError(null);
 
@@ -562,7 +643,8 @@ export function InvestigationWorkspace() {
         const parsedBase = parseTelematicsCsv(csvText, fileName);
         const detectedEvents = detectTelematicsEvents(
           parsedBase.rows,
-          evidenceId
+          evidenceId,
+          fileName
         );
         const parsed = buildParsedTelematics(
           evidenceId,
@@ -605,6 +687,7 @@ export function InvestigationWorkspace() {
         }
 
         logActivity("uploaded_csv", `Processed telematics CSV: ${fileName}`);
+        return true;
       } catch (error) {
         const message =
           error instanceof TelematicsParseError
@@ -612,6 +695,7 @@ export function InvestigationWorkspace() {
             : "Unable to parse telematics CSV. Please check the file format.";
         setUploadError(message);
         setUploadState("error");
+        return false;
       }
     },
     [logActivity]
@@ -918,43 +1002,81 @@ export function InvestigationWorkspace() {
       setUploadError(null);
       setUploadWarnings([]);
 
-      const csvText = await loadSampleTelematicsCsv(activeClaim);
-      const telematicsEvidence = activeClaim.evidenceFiles.find(
-        (file) => file.id === "ev-telematics"
-      );
+      if (
+        hasSampleEvidenceLoaded(
+          evidenceFiles,
+          sampleEvidenceLoaded,
+          Boolean(telematicsByEvidenceId["ev-telematics"])
+        )
+      ) {
+        setUploadState("idle");
+        setUploadWarnings([SAMPLE_EVIDENCE_ALREADY_LOADED_MESSAGE]);
+        return;
+      }
 
-      await processTelematicsCsv(
+      const bundle = resolveSampleEvidenceBundle(evidenceFiles);
+      const csvText = await fetchSampleTelematicsCsv(bundle.telematicsUrl);
+
+      const telematicsProcessed = await processTelematicsCsv(
         csvText,
         "telematics.csv",
         "ev-telematics",
         undefined,
-        telematicsEvidence
+        bundle.telematicsEvidence
       );
+      if (!telematicsProcessed) {
+        return;
+      }
 
-      const enrichedFiles = await enrichSampleEvidencePreviews(activeClaim);
-      setEvidenceFiles((current) =>
-        enrichedFiles.map((file) => {
-          const existing = current.find((item) => item.id === file.id);
-          if (file.id === "ev-telematics" && existing) {
-            return existing;
-          }
-          return file;
-        })
-      );
+      const claimForPreview: Claim = {
+        ...activeClaim,
+        evidenceFiles: bundle.files,
+        sampleEvidencePath: bundle.sampleEvidencePath,
+      };
+      const enrichedFiles = await enrichSampleEvidencePreviews(claimForPreview);
+
+      setEvidenceFiles((current) => {
+        const parsedTelematics = current.find((file) => file.id === "ev-telematics");
+        const sampleIds = new Set(enrichedFiles.map((file) => file.id));
+        const nonSampleFiles = current.filter((file) => !sampleIds.has(file.id));
+        const sampleFiles = enrichedFiles.map((file) =>
+          file.id === "ev-telematics" && parsedTelematics
+            ? parsedTelematics
+            : file
+        );
+        return [...nonSampleFiles, ...sampleFiles];
+      });
       setSampleEvidenceLoaded(true);
+      setUploadState("processed");
       logActivity(
         "loaded_sample_evidence",
         `Loaded sample evidence for ${activeClaim.id}`
       );
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to load sample evidence.";
+      let message: string;
+      if (error instanceof SampleEvidenceFileMissingError) {
+        message = error.message;
+      } else if (error instanceof TelematicsParseError) {
+        message = `Telematics parser failure: ${error.message}`;
+      } else if (error instanceof SampleEvidenceUnexpectedError) {
+        message = error.message;
+      } else if (error instanceof Error) {
+        message = `An unexpected error occurred while loading sample evidence: ${error.message}`;
+      } else {
+        message =
+          "An unexpected error occurred while loading sample evidence. Please try again.";
+      }
       setUploadError(message);
       setUploadState("error");
     }
-  }, [activeClaim, processTelematicsCsv, logActivity]);
+  }, [
+    activeClaim,
+    evidenceFiles,
+    sampleEvidenceLoaded,
+    telematicsByEvidenceId,
+    processTelematicsCsv,
+    logActivity,
+  ]);
 
   const handleInsertSelectedEvent = useCallback(() => {
     if (!selectedEvent) return;
@@ -1092,13 +1214,16 @@ export function InvestigationWorkspace() {
     [activeClaim.evidenceFiles, activeClaimId, setAllNotes, setAllActivities, logActivity]
   );
 
-  const handleTabChange = useCallback(
+  const handleViewerTabChange = useCallback(
     (tab: ViewerTab) => {
+      setActiveViewerTab(tab);
       const labels: Record<ViewerTab, string> = {
         video: "Video",
         telemetry: "Telemetry",
         map: "Map",
         notes: "Notes",
+        ai: "AI",
+        evidence: "Evidence",
       };
       logActivity("general", `Opened ${labels[tab]} tab`);
     },
@@ -1189,6 +1314,72 @@ export function InvestigationWorkspace() {
     logActivity("copied_event_summary", "Copied event summary");
   }, [logActivity]);
 
+  const handleGenerateAi = useCallback(async () => {
+    setAiGenerationNotice(null);
+    const result = await buildStoredAiAnalysis({
+      claimId: activeClaimId,
+      evidenceFiles,
+      hasTelematics:
+        hasUploadedTelematics ||
+        evidenceFiles.some((file) => file.id === "ev-telematics"),
+      status: "generated",
+    });
+    if (result.failureReason === "no_text_evidence") {
+      setAiGenerationNotice(AI_NO_TEXT_EVIDENCE_COPY);
+      return;
+    }
+    if (result.failureReason === "no_observations" || !result.stored) {
+      setAiGenerationNotice(AI_NO_OBSERVATIONS_COPY);
+      return;
+    }
+    setAiAnalysis(result.stored);
+    logActivity(
+      "generated_ai_observations",
+      `Generated ${result.stored.documentObservations.length} document observations`
+    );
+  }, [
+    activeClaimId,
+    evidenceFiles,
+    hasUploadedTelematics,
+    logActivity,
+  ]);
+
+  const handleRegenerateAi = useCallback(async () => {
+    setAiGenerationNotice(null);
+    const result = await buildStoredAiAnalysis({
+      claimId: activeClaimId,
+      evidenceFiles,
+      hasTelematics:
+        hasUploadedTelematics ||
+        evidenceFiles.some((file) => file.id === "ev-telematics"),
+      status: "regenerated",
+    });
+    if (result.failureReason === "no_text_evidence") {
+      setAiGenerationNotice(AI_NO_TEXT_EVIDENCE_COPY);
+      return;
+    }
+    if (result.failureReason === "no_observations" || !result.stored) {
+      setAiGenerationNotice(AI_NO_OBSERVATIONS_COPY);
+      return;
+    }
+    setAiAnalysis(result.stored);
+    logActivity(
+      "regenerated_ai_observations",
+      `Regenerated ${result.stored.documentObservations.length} document observations`
+    );
+  }, [
+    activeClaimId,
+    evidenceFiles,
+    hasUploadedTelematics,
+    logActivity,
+  ]);
+
+  const handleClearAi = useCallback(() => {
+    setAiAnalysis(buildClearedAiAnalysis(evidenceFiles, aiAnalysis));
+    setAiGenerationNotice(null);
+    logActivity("cleared_ai_observations", "Cleared AI observations");
+  }, [evidenceFiles, aiAnalysis, logActivity]);
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-slate-100/60">
       <Header
@@ -1222,9 +1413,12 @@ export function InvestigationWorkspace() {
 
         <main className="min-h-0 overflow-y-auto border-x border-border">
           <EvidenceViewerTabs
+            activeTab={activeViewerTab}
+            onTabChange={handleViewerTabChange}
             selectedEvent={selectedEvent}
             selectedEvidence={selectedEvidence}
-            parsedTelematics={activeTelematics}
+            telemetryTelematics={activeTelematics}
+            selectedParsedTelematics={selectedParsedTelematics}
             mapRouteLabel={activeClaim.mapRouteLabel}
             speedData={speedData}
             mapRoute={mapData.route}
@@ -1255,7 +1449,15 @@ export function InvestigationWorkspace() {
             importMessage={importMessage}
             onExportSession={handleExportSession}
             onImportSession={handleImportSession}
-            onTabChange={handleTabChange}
+            aiAnalysis={aiAnalysis}
+            evidenceFiles={evidenceFiles}
+            aiGenerationNotice={aiGenerationNotice}
+            onGenerateAi={handleGenerateAi}
+            onRegenerateAi={handleRegenerateAi}
+            onClearAi={handleClearAi}
+            onPreviewEvidence={handlePreviewEvidence}
+            onOpenEvidenceReference={handleOpenEvidenceReference}
+            activeEvidenceReference={activeEvidenceReference}
           />
         </main>
 
@@ -1277,6 +1479,8 @@ export function InvestigationWorkspace() {
           isVideoPlaying={isVideoPlaying}
           playbackEvent={playbackEvent}
           onCopySummary={handleCopySummary}
+          onPreviewEvidence={handlePreviewEvidence}
+          onOpenEvidenceReference={handleOpenEvidenceReference}
         />
       </div>
 

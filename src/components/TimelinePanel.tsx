@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { EvidenceSourceChip } from "@/components/EvidenceSourceChip";
 import { Badge } from "@/components/ui/badge";
 import {
   filterTimelineEvents,
@@ -33,6 +34,7 @@ interface TimelinePanelProps {
   selectedEventHiddenByFilter: boolean;
   isVideoPlaying: boolean;
   playbackEvent: TimelineEvent | null;
+  onPreviewEvidence?: (evidenceId: string) => void;
 }
 
 const sourceOptions: { value: TimelineSourceFilter; label: string }[] = [
@@ -41,6 +43,7 @@ const sourceOptions: { value: TimelineSourceFilter; label: string }[] = [
   { value: "telematics", label: "Telematics" },
   { value: "gps", label: "GPS" },
   { value: "police", label: "Police Report" },
+  { value: "ai", label: "AI" },
   { value: "uploaded", label: "Uploaded Telemetry" },
 ];
 
@@ -66,9 +69,10 @@ export function TimelinePanel({
   selectedEventHiddenByFilter,
   isVideoPlaying,
   playbackEvent,
+  onPreviewEvidence,
 }: TimelinePanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const eventRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const eventRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   const previousSelectedRef = useRef(selectedEventId);
 
@@ -181,7 +185,7 @@ export function TimelinePanel({
 
                 return (
                   <div key={event.id} className="relative">
-                    <button
+                    <div
                       ref={(node) => {
                         if (node) {
                           eventRefs.current.set(event.id, node);
@@ -189,12 +193,23 @@ export function TimelinePanel({
                           eventRefs.current.delete(event.id);
                         }
                       }}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
                       onClick={() => onSelectEvent(event.id)}
+                      onKeyDown={(keyboardEvent) => {
+                        if (
+                          keyboardEvent.key === "Enter" ||
+                          keyboardEvent.key === " "
+                        ) {
+                          keyboardEvent.preventDefault();
+                          onSelectEvent(event.id);
+                        }
+                      }}
                       onMouseEnter={() => setHoveredEventId(event.id)}
                       onMouseLeave={() => setHoveredEventId(null)}
                       className={cn(
-                        "relative w-full rounded-md border px-1.5 py-1 text-left transition-colors",
+                        "relative w-full cursor-pointer rounded-md border px-1.5 py-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80",
                         isSelected
                           ? "border-amber-300/70 bg-amber-50/70 ring-1 ring-amber-200/60"
                           : "border-transparent hover:border-slate-200 hover:bg-slate-50/80"
@@ -250,23 +265,36 @@ export function TimelinePanel({
                               Uploaded telemetry
                             </Badge>
                           )}
-                          {linkedFiles.map((file) => (
-                            <Badge
-                              key={file.id}
-                              variant="outline"
-                              className={cn(
-                                "h-3.5 bg-white px-1 text-[8px] font-normal leading-none",
-                                isSelected
-                                  ? "border-amber-200/80 text-amber-900/70"
-                                  : "text-slate-600"
-                              )}
-                            >
-                              {file.name}
-                            </Badge>
-                          ))}
+                          {linkedFiles.map((file) =>
+                            onPreviewEvidence ? (
+                              <EvidenceSourceChip
+                                key={file.id}
+                                file={file}
+                                onPreview={onPreviewEvidence}
+                                className={cn(
+                                  "h-3.5 px-1 text-[8px] leading-none",
+                                  isSelected &&
+                                    "border-amber-200/80 text-amber-900/70 hover:border-amber-300 hover:bg-amber-50"
+                                )}
+                              />
+                            ) : (
+                              <Badge
+                                key={file.id}
+                                variant="outline"
+                                className={cn(
+                                  "h-3.5 bg-white px-1 text-[8px] font-normal leading-none",
+                                  isSelected
+                                    ? "border-amber-200/80 text-amber-900/70"
+                                    : "text-slate-600"
+                                )}
+                              >
+                                {file.name}
+                              </Badge>
+                            )
+                          )}
                         </div>
                       </div>
-                    </button>
+                    </div>
 
                     {hoveredEventId === event.id && hoveredEvent && (
                       <EventHoverPreview

@@ -1,3 +1,8 @@
+import { aiTimelineEventsToTimelineEvents } from "@/lib/ai/aiTimelineBridge";
+import {
+  hasActiveAiContent,
+  normalizeStoredAiAnalysis,
+} from "@/lib/ai/aiService";
 import { formatClaimDisplayTitle } from "@/lib/claimDisplay";
 import { SHARE_CREATED_BY_PLACEHOLDER } from "@/lib/share/constants";
 import {
@@ -154,8 +159,24 @@ function resolveClaimTimelineEvents(claimId: string): TimelineEvent[] {
   const uploadedEvents = collectUploadedTimelineEvents(
     workspace.telematicsByEvidenceId
   );
-  if (uploadedEvents.length === 0) return stored.claim.timelineEvents;
-  return mergeTimelineEvents(stored.claim.timelineEvents, uploadedEvents);
+  let events =
+    uploadedEvents.length > 0
+      ? mergeTimelineEvents(stored.claim.timelineEvents, uploadedEvents)
+      : stored.claim.timelineEvents;
+
+  const aiAnalysis = normalizeStoredAiAnalysis(stored.aiAnalysis ?? null);
+  if (
+    aiAnalysis &&
+    hasActiveAiContent(aiAnalysis) &&
+    aiAnalysis.timelineEvents.length
+  ) {
+    events = mergeTimelineEvents(
+      events,
+      aiTimelineEventsToTimelineEvents(aiAnalysis.timelineEvents)
+    );
+  }
+
+  return events;
 }
 
 function resolveClaimEvidence(claimId: string): EvidenceFile[] {

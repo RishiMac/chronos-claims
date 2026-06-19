@@ -1,5 +1,17 @@
 import type { Claim, EvidenceFile } from "@/types/claim";
 
+export const canonicalSampleEvidenceSourceId = "CC-2026-001";
+
+export function buildSampleEvidenceFiles(
+  sourceClaimId: string = canonicalSampleEvidenceSourceId
+): EvidenceFile[] {
+  return buildEvidenceFiles(sourceClaimId);
+}
+
+export function getCanonicalSampleEvidencePath(): string {
+  return `/sample-evidence/${canonicalSampleEvidenceSourceId}`;
+}
+
 function buildEvidenceFiles(claimId: string): EvidenceFile[] {
   const files: EvidenceFile[] = [
     {

@@ -6,15 +6,21 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EvidenceSourceChip } from "@/components/EvidenceSourceChip";
+import { SupportingEvidenceList } from "@/components/SupportingEvidenceList";
 import { buildEventSummaryCopy, severityStyles } from "@/lib/eventUtils";
+import { getEventEvidenceReferences } from "@/lib/evidenceReferenceUtils";
 import { cn } from "@/lib/utils";
 import type { ConfidenceLevel, EvidenceFile, TimelineEvent } from "@/types/claim";
+import type { EvidenceReference } from "@/types/evidence-reference";
 
 interface EventDetailsCardProps {
   event: TimelineEvent | null;
   linkedEvidence: EvidenceFile[];
   hiddenByFilter?: boolean;
   onCopySummary?: () => void;
+  onPreviewEvidence?: (evidenceId: string) => void;
+  onOpenEvidenceReference?: (reference: EvidenceReference) => void;
 }
 
 const confidenceStyles: Record<ConfidenceLevel, string> = {
@@ -28,6 +34,8 @@ export function EventDetailsCard({
   linkedEvidence,
   hiddenByFilter = false,
   onCopySummary,
+  onPreviewEvidence,
+  onOpenEvidenceReference,
 }: EventDetailsCardProps) {
   const [copied, setCopied] = useState(false);
 
@@ -56,6 +64,8 @@ export function EventDetailsCard({
       </Card>
     );
   }
+
+  const supportingReferences = getEventEvidenceReferences(event, linkedEvidence);
 
   return (
     <Card className="border-slate-200 shadow-none">
@@ -131,15 +141,39 @@ export function EventDetailsCard({
         <div>
           <p className="text-[12px] text-slate-500">Source references</p>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {linkedEvidence.map((file) => (
-              <Badge
-                key={file.id}
-                variant="secondary"
-                className="h-4 bg-slate-100 px-1.5 text-[10px] font-normal text-slate-600"
-              >
-                {file.name}
-              </Badge>
-            ))}
+            {linkedEvidence.map((file) =>
+              onPreviewEvidence ? (
+                <EvidenceSourceChip
+                  key={file.id}
+                  file={file}
+                  onPreview={onPreviewEvidence}
+                />
+              ) : (
+                <Badge
+                  key={file.id}
+                  variant="secondary"
+                  className="h-4 bg-slate-100 px-1.5 text-[10px] font-normal text-slate-600"
+                >
+                  {file.name}
+                </Badge>
+              )
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[12px] font-medium text-slate-700">
+            Supporting Evidence
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Source references attached to this event for human review.
+          </p>
+          <div className="mt-2">
+            <SupportingEvidenceList
+              references={supportingReferences}
+              onOpenReference={onOpenEvidenceReference}
+              compact
+            />
           </div>
         </div>
 

@@ -1,3 +1,4 @@
+import { buildRowEvidenceReference } from "@/lib/evidenceReferenceUtils";
 import { formatDisplayTime } from "@/lib/telematics/csvUtils";
 import { countHardBrakingEvents } from "@/lib/telematics/computeMetrics";
 import type { ConfidenceLevel, TimelineEvent } from "@/types/claim";
@@ -5,7 +6,8 @@ import type { TelemetryRecord } from "@/types/telemetry";
 
 export function detectTelematicsEvents(
   records: TelemetryRecord[],
-  evidenceFileId: string
+  evidenceFileId: string,
+  fileName = "telematics.csv"
 ): TimelineEvent[] {
   if (records.length === 0) return [];
 
@@ -16,20 +18,23 @@ export function detectTelematicsEvents(
   const peakRow = records.reduce((currentPeak, row) =>
     row.speedMph > currentPeak.speedMph ? row : currentPeak
   );
+  const peakRowIndex = records.indexOf(peakRow);
   events.push(
     buildEvent({
       id: `${evidenceFileId}-peak-speed`,
       markerId: `${evidenceFileId}-peak-speed`,
-      rowIndex: records.indexOf(peakRow),
+      rowIndex: peakRowIndex,
       row: peakRow,
       title: "Peak speed recorded",
       description: `Uploaded telemetry indicates peak recorded speed of ${peakRow.speedMph} mph during the incident window.`,
       confidence: "High",
       severity: "info",
       evidenceFileId,
+      fileName,
       start,
       end,
       notes: "Peak speed derived from normalized telemetry for human review.",
+      excerpt: `Peak recorded speed ${peakRow.speedMph} mph at ${peakRow.timestamp}.`,
     })
   );
 
@@ -40,15 +45,19 @@ export function detectTelematicsEvents(
         id: `${evidenceFileId}-hard-braking`,
         markerId: `${evidenceFileId}-hard-braking`,
         rowIndex: hardBraking.endIndex,
+        rowStart: hardBraking.startIndex,
+        rowEnd: hardBraking.endIndex,
         row: records[hardBraking.endIndex],
         title: "Hard braking detected",
         description: `Telemetry indicates a speed decrease from ${hardBraking.fromSpeed} mph to ${hardBraking.toSpeed} mph over ${hardBraking.durationSeconds.toFixed(1)} seconds.`,
         confidence: hardBraking.confidence,
         severity: "moderate",
         evidenceFileId,
+        fileName,
         start,
         end,
         notes: `Hard braking events in file: ${countHardBrakingEvents(records)}. Requires human review.`,
+        excerpt: `Speed decreased from ${hardBraking.fromSpeed} mph to ${hardBraking.toSpeed} mph over ${hardBraking.durationSeconds.toFixed(1)} seconds.`,
       })
     );
   }
@@ -60,15 +69,19 @@ export function detectTelematicsEvents(
         id: `${evidenceFileId}-harsh-acceleration`,
         markerId: `${evidenceFileId}-harsh-acceleration`,
         rowIndex: harshAccel.endIndex,
+        rowStart: harshAccel.startIndex,
+        rowEnd: harshAccel.endIndex,
         row: records[harshAccel.endIndex],
         title: "Harsh acceleration detected",
         description: `Telemetry indicates speed increased from ${harshAccel.fromSpeed} mph to ${harshAccel.toSpeed} mph over ${harshAccel.durationSeconds.toFixed(1)} seconds.`,
         confidence: harshAccel.confidence,
         severity: "moderate",
         evidenceFileId,
+        fileName,
         start,
         end,
         notes: "Acceleration pattern detected in uploaded telemetry for reviewer verification.",
+        excerpt: `Speed increased from ${harshAccel.fromSpeed} mph to ${harshAccel.toSpeed} mph over ${harshAccel.durationSeconds.toFixed(1)} seconds.`,
       })
     );
   }
@@ -87,9 +100,11 @@ export function detectTelematicsEvents(
         confidence: "High",
         severity: "info",
         evidenceFileId,
+        fileName,
         start,
         end,
         notes: "Stop event recorded in normalized telemetry at this timestamp.",
+        excerpt: `Vehicle speed reached ${records[stoppedIndex].speedMph} mph at ${records[stoppedIndex].timestamp}.`,
       })
     );
   }
@@ -109,9 +124,11 @@ export function detectTelematicsEvents(
         confidence: "Medium",
         severity: "info",
         evidenceFileId,
+        fileName,
         start,
         end,
         notes: "Near-stop reading supports review without implying a full stop.",
+        excerpt: `Speed near ${records[nearStopIndex].speedMph} mph at ${records[nearStopIndex].timestamp}.`,
       })
     );
   }
@@ -129,9 +146,11 @@ export function detectTelematicsEvents(
         confidence: "Medium",
         severity: "info",
         evidenceFileId,
+        fileName,
         start,
         end,
         notes: "Speed recovery pattern supports review of post-braking movement.",
+        excerpt: `Speed recovered to ${recovery.toSpeed} mph at ${records[recovery.index].timestamp}.`,
       })
     );
   }
@@ -229,28 +248,36 @@ function buildEvent({
   id,
   markerId,
   rowIndex,
+  rowStart,
+  rowEnd,
   row,
   title,
   description,
   confidence,
   severity,
   evidenceFileId,
+  fileName,
   start,
   end,
   notes,
+  excerpt,
 }: {
   id: string;
   markerId: string;
   rowIndex: number;
+  rowStart?: number;
+  rowEnd?: number;
   row: TelemetryRecord;
   title: string;
   description: string;
   confidence: ConfidenceLevel;
   severity: TimelineEvent["severity"];
   evidenceFileId: string;
+  fileName: string;
   start: Date;
   end: Date;
   notes: string;
+  excerpt: string;
 }): TimelineEvent {
   const videoOffsetSeconds = (row.date.getTime() - start.getTime()) / 1000;
 
@@ -269,6 +296,18 @@ function buildEvent({
     sortDate: row.date,
     videoProgress: computeVideoProgress(row.date, start, end),
     videoOffsetSeconds,
+    evidenceReferences: [
+      buildRowEvidenceReference({
+        evidenceFileId,
+        filename: fileName,
+        rowIndex,
+        rowStart,
+        rowEnd,
+        excerpt,
+        confidence,
+        idSuffix: id,
+      }),
+    ],
   };
 }
 

@@ -103,6 +103,7 @@ export function buildStoredClaimSnapshot(
     sourceFilter: workspace.sourceFilter,
     severityFilter: workspace.severityFilter,
     searchQuery: workspace.searchQuery,
+    aiAnalysis: workspace.aiAnalysis ?? null,
   };
 }
 
@@ -117,6 +118,7 @@ export function workspaceFromStored(stored: StoredClaim): {
   sourceFilter: StoredClaim["sourceFilter"];
   severityFilter: StoredClaim["severityFilter"];
   searchQuery: string;
+  aiAnalysis: StoredClaim["aiAnalysis"];
 } {
   return {
     evidenceFiles: stored.evidenceFiles,
@@ -129,5 +131,6 @@ export function workspaceFromStored(stored: StoredClaim): {
     sourceFilter: stored.sourceFilter ?? "all",
     severityFilter: stored.severityFilter ?? "all",
     searchQuery: stored.searchQuery ?? "",
+    aiAnalysis: stored.aiAnalysis ?? null,
   };
 }

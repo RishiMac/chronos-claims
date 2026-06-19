@@ -1,3 +1,4 @@
+import type { StoredAiAnalysis } from "@/types/ai-types";
 import type {
   Claim,
   EvidenceFile,
@@ -20,6 +21,7 @@ export interface StoredClaim {
   severityFilter: SeverityFilter;
   searchQuery: string;
   isSample: boolean;
+  aiAnalysis?: StoredAiAnalysis | null;
 }
 
 export interface ClaimWorkspaceSnapshot {
@@ -33,4 +35,5 @@ export interface ClaimWorkspaceSnapshot {
   sourceFilter: TimelineSourceFilter;
   severityFilter: SeverityFilter;
   searchQuery: string;
+  aiAnalysis?: StoredAiAnalysis | null;
 }
