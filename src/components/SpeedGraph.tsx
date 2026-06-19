@@ -17,10 +17,10 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
   const maxSpeed = Math.max(...data.map((point) => point.speed), 45);
   const chartWidth = WIDTH - PADDING.left - PADDING.right;
   const chartHeight = HEIGHT - PADDING.top - PADDING.bottom;
+  const denominator = Math.max(data.length - 1, 1);
 
   const points = data.map((point, index) => {
-    const x =
-      PADDING.left + (index / (data.length - 1)) * chartWidth;
+    const x = PADDING.left + (index / denominator) * chartWidth;
     const y =
       PADDING.top + chartHeight - (point.speed / maxSpeed) * chartHeight;
     return { ...point, x, y };
@@ -33,6 +33,9 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${
     PADDING.top + chartHeight
   } L ${points[0].x} ${PADDING.top + chartHeight} Z`;
+
+  const startLabel = data[0]?.time ?? "";
+  const endLabel = data[data.length - 1]?.time ?? "";
 
   return (
     <Card className="border-slate-200 shadow-sm">
@@ -86,23 +89,23 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
           {points
             .filter((point) => point.markerId)
             .map((point) => {
-              const isHighlighted =
-                point.markerId === highlightedMarkerId ||
-                highlightedMarkerId === null;
+              const isSelected = point.markerId === highlightedMarkerId;
+              const isDimmed =
+                highlightedMarkerId !== null && !isSelected;
 
               return (
                 <g key={point.markerId}>
                   <circle
                     cx={point.x}
                     cy={point.y}
-                    r={isHighlighted ? 7 : 5}
+                    r={isSelected ? 7 : 5}
                     className={cn(
                       "transition-all duration-200",
-                      point.markerId === highlightedMarkerId
+                      isSelected
                         ? "fill-amber-500 stroke-white"
-                        : isHighlighted
-                          ? "fill-teal-600 stroke-white"
-                          : "fill-slate-300 stroke-white opacity-40"
+                        : isDimmed
+                          ? "fill-slate-300 stroke-white opacity-40"
+                          : "fill-teal-600 stroke-white"
                     )}
                     strokeWidth={2}
                   />
@@ -113,12 +116,10 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
                       textAnchor="middle"
                       className={cn(
                         "text-[9px] font-medium",
-                        point.markerId === highlightedMarkerId
-                          ? "fill-amber-700"
-                          : "fill-slate-500"
+                        isSelected ? "fill-amber-700" : "fill-slate-500"
                       )}
                     >
-                      {point.time.replace("2:41:", "")} — {point.label}
+                      {point.time} — {point.label}
                     </text>
                   )}
                 </g>
@@ -130,7 +131,7 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
             y={HEIGHT - 10}
             className="fill-slate-400 text-[10px]"
           >
-            2:41:08 PM
+            {startLabel}
           </text>
           <text
             x={WIDTH - PADDING.right}
@@ -138,7 +139,7 @@ export function SpeedGraph({ data, highlightedMarkerId }: SpeedGraphProps) {
             textAnchor="end"
             className="fill-slate-400 text-[10px]"
           >
-            2:41:24 PM
+            {endLabel}
           </text>
 
           <defs>

@@ -77,7 +77,18 @@ export function TimelinePanel({
                         {event.title}
                       </p>
                     </div>
-                    <div className="mt-0.5 flex flex-wrap gap-0.5">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
+                      {event.isUploadedTelemetry && (
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "h-3.5 bg-sky-50 px-1 text-[8px] font-normal leading-none text-sky-700",
+                            isSelected && "bg-amber-100 text-amber-900"
+                          )}
+                        >
+                          Uploaded telemetry
+                        </Badge>
+                      )}
                       {linkedFiles.map((file) => (
                         <Badge
                           key={file.id}

@@ -15,6 +15,8 @@ interface EvidenceViewerTabsProps {
   speedData: SpeedDataPoint[];
   mapRoute: { x: number; y: number }[];
   mapMarkers: MapMarker[];
+  hasUploadedTelematics: boolean;
+  hasGpsCoordinates: boolean;
 }
 
 const tabs: { id: ViewerTab; label: string }[] = [
@@ -28,6 +30,8 @@ export function EvidenceViewerTabs({
   speedData,
   mapRoute,
   mapMarkers,
+  hasUploadedTelematics,
+  hasGpsCoordinates,
 }: EvidenceViewerTabsProps) {
   const [activeTab, setActiveTab] = useState<ViewerTab>("video");
 
@@ -71,6 +75,12 @@ export function EvidenceViewerTabs({
             route={mapRoute}
             markers={mapMarkers}
             highlightedMarkerId={selectedEvent.markerId}
+            hasGpsCoordinates={hasUploadedTelematics ? hasGpsCoordinates : true}
+            routeLabel={
+              hasUploadedTelematics
+                ? "Uploaded telematics route — normalized coordinates"
+                : "Market St & 5th Ave — schematic route"
+            }
           />
         )}
       </div>

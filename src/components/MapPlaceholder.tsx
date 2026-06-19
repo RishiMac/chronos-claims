@@ -8,13 +8,36 @@ interface MapPlaceholderProps {
   route: { x: number; y: number }[];
   markers: MapMarker[];
   highlightedMarkerId: string | null;
+  hasGpsCoordinates?: boolean;
+  routeLabel?: string;
 }
 
 export function MapPlaceholder({
   route,
   markers,
   highlightedMarkerId,
+  hasGpsCoordinates = true,
+  routeLabel = "Market St & 5th Ave — schematic route",
 }: MapPlaceholderProps) {
+  if (!hasGpsCoordinates) {
+    return (
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-4 py-3">
+          <CardTitle className="text-[13px] font-medium text-slate-900">
+            GPS Route
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+            <p className="text-[13px] text-slate-600">
+              No GPS coordinates found in uploaded telematics file.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const routePath = route
     .map((point, index) => {
       const x = point.x;
@@ -131,7 +154,7 @@ export function MapPlaceholder({
           </svg>
 
           <div className="absolute bottom-2 left-2 rounded bg-white/90 px-2 py-1 text-[10px] text-slate-600 shadow-sm">
-            Market St & 5th Ave — schematic route
+            {routeLabel}
           </div>
         </div>
       </CardContent>

@@ -11,6 +11,8 @@ export interface EvidenceMetadata {
   description: string;
   duration?: string;
   recordCount?: number;
+  timeRange?: { start: string; end: string };
+  detectedEventCount?: number;
 }
 
 export interface EvidenceFile {
@@ -31,7 +33,30 @@ export interface TimelineEvent {
   notes: string;
   markerId: string;
   videoProgress: number;
+  isUploadedTelemetry?: boolean;
+  sortDate?: Date;
+  rowIndex?: number;
 }
+
+export interface TelematicsRow {
+  timestamp: string;
+  date: Date;
+  speedMph: number;
+  latitude?: number;
+  longitude?: number;
+  brakeStatus?: boolean;
+}
+
+export interface ParsedTelematics {
+  fileName: string;
+  rows: TelematicsRow[];
+  uploadedAt: string;
+  timeRange: { start: string; end: string };
+  detectedEvents: TimelineEvent[];
+  hasGpsCoordinates: boolean;
+}
+
+export type TelematicsUploadState = "idle" | "parsing" | "processed" | "error";
 
 export interface SpeedDataPoint {
   time: string;

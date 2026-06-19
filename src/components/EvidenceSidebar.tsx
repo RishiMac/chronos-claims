@@ -1,22 +1,33 @@
 "use client";
 
+import { useRef } from "react";
 import {
   Archive,
   FileSpreadsheet,
   FileText,
   FileVideo,
+  Loader2,
   Upload,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import type { EvidenceFile, EvidenceFileType } from "@/types/claim";
+import type {
+  EvidenceFile,
+  EvidenceFileType,
+  TelematicsUploadState,
+} from "@/types/claim";
 
 interface EvidenceSidebarProps {
   files: EvidenceFile[];
   selectedEvidenceId: string | null;
   onSelectEvidence: (id: string) => void;
+  uploadState: TelematicsUploadState;
+  uploadError: string | null;
+  processedFileName: string | null;
+  onUploadCsv: (file: File) => void;
+  onLoadSampleCsv: () => void;
 }
 
 const fileTypeIcons: Record<EvidenceFileType, typeof FileText> = {
@@ -39,8 +50,23 @@ export function EvidenceSidebar({
   files,
   selectedEvidenceId,
   onSelectEvidence,
+  uploadState,
+  uploadError,
+  processedFileName,
+  onUploadCsv,
+  onLoadSampleCsv,
 }: EvidenceSidebarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedFile = files.find((file) => file.id === selectedEvidenceId);
+  const isParsing = uploadState === "parsing";
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onUploadCsv(file);
+    }
+    event.target.value = "";
+  };
 
   return (
     <aside className="h-full min-h-0 overflow-y-auto border-b border-border bg-slate-50/80 pb-10 xl:border-b-0 xl:border-r">
@@ -56,13 +82,59 @@ export function EvidenceSidebar({
         <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">
           Source references linked to this claim
         </p>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
         <button
           type="button"
-          className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 bg-white px-3 py-2 text-[12px] font-medium text-slate-600 transition-colors hover:border-slate-400 hover:bg-slate-50"
+          disabled={isParsing}
+          onClick={() => fileInputRef.current?.click()}
+          className={cn(
+            "mt-2.5 flex w-full items-center justify-center gap-2 rounded-md border border-dashed px-3 py-2 text-[12px] font-medium transition-colors",
+            isParsing
+              ? "cursor-wait border-slate-300 bg-slate-100 text-slate-500"
+              : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50"
+          )}
         >
-          <Upload className="size-3.5" />
-          Upload evidence (coming soon)
+          {isParsing ? (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              Parsing telematics CSV...
+            </>
+          ) : (
+            <>
+              <Upload className="size-3.5" />
+              Upload telematics CSV
+            </>
+          )}
         </button>
+
+        <button
+          type="button"
+          disabled={isParsing}
+          onClick={onLoadSampleCsv}
+          className="mt-2 text-[11px] text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Use sample telematics CSV
+        </button>
+
+        {uploadState === "processed" && processedFileName && (
+          <p className="mt-2 text-[11px] text-emerald-700">
+            Processed telematics CSV: {processedFileName}
+          </p>
+        )}
+
+        {uploadState === "error" && uploadError && (
+          <p className="mt-2 text-[11px] leading-snug text-red-600">
+            {uploadError}
+          </p>
+        )}
       </div>
 
       <div className="space-y-1 p-2">
@@ -128,16 +200,28 @@ export function EvidenceSidebar({
             />
             <DetailRow label="Size" value={selectedFile.metadata.fileSize} />
             <DetailRow label="Source" value={selectedFile.metadata.source} />
+            {selectedFile.metadata.recordCount !== undefined && (
+              <DetailRow
+                label="Row count"
+                value={String(selectedFile.metadata.recordCount)}
+              />
+            )}
+            {selectedFile.metadata.timeRange && (
+              <DetailRow
+                label="Time range"
+                value={`${selectedFile.metadata.timeRange.start} – ${selectedFile.metadata.timeRange.end}`}
+              />
+            )}
+            {selectedFile.metadata.detectedEventCount !== undefined && (
+              <DetailRow
+                label="Detected events"
+                value={String(selectedFile.metadata.detectedEventCount)}
+              />
+            )}
             {selectedFile.metadata.duration && (
               <DetailRow
                 label="Duration"
                 value={selectedFile.metadata.duration}
-              />
-            )}
-            {selectedFile.metadata.recordCount && (
-              <DetailRow
-                label="Records"
-                value={String(selectedFile.metadata.recordCount)}
               />
             )}
             <p className="pt-1 text-[12px] leading-relaxed text-slate-500">
