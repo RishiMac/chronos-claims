@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Bookmark, Flag, MessageSquare, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { EvidenceSourceChip } from "@/components/EvidenceSourceChip";
@@ -10,10 +10,17 @@ import {
   formatDurationLabel,
   severityStyles,
 } from "@/lib/eventUtils";
+import {
+  getAssigneeInitials,
+  reviewStatusStyles,
+} from "@/lib/collaboration/collaborationUtils";
 import { cn } from "@/lib/utils";
 import type {
+  BookmarkFilter,
   EvidenceFile,
+  FlagFilter,
   InvestigationStats,
+  ReviewStatusFilter,
   SeverityFilter,
   TimelineEvent,
   TimelineSourceFilter,
@@ -26,10 +33,16 @@ interface TimelinePanelProps {
   onSelectEvent: (id: string) => void;
   sourceFilter: TimelineSourceFilter;
   severityFilter: SeverityFilter;
+  reviewStatusFilter: ReviewStatusFilter;
+  bookmarkFilter: BookmarkFilter;
+  flagFilter: FlagFilter;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   onSourceFilterChange: (filter: TimelineSourceFilter) => void;
   onSeverityFilterChange: (filter: SeverityFilter) => void;
+  onReviewStatusFilterChange: (filter: ReviewStatusFilter) => void;
+  onBookmarkFilterChange: (filter: BookmarkFilter) => void;
+  onFlagFilterChange: (filter: FlagFilter) => void;
   stats: InvestigationStats;
   selectedEventHiddenByFilter: boolean;
   isVideoPlaying: boolean;
@@ -54,6 +67,25 @@ const severityOptions: { value: SeverityFilter; label: string }[] = [
   { value: "critical", label: "Critical" },
 ];
 
+const reviewStatusOptions: { value: ReviewStatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "unreviewed", label: "Unreviewed" },
+  { value: "needs_review", label: "Needs review" },
+  { value: "reviewed", label: "Reviewed" },
+  { value: "approved", label: "Approved" },
+  { value: "dismissed", label: "Dismissed" },
+];
+
+const bookmarkOptions: { value: BookmarkFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "bookmarked", label: "Bookmarked only" },
+];
+
+const flagOptions: { value: FlagFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "flagged", label: "Flagged only" },
+];
+
 export function TimelinePanel({
   events,
   evidenceFiles,
@@ -61,10 +93,16 @@ export function TimelinePanel({
   onSelectEvent,
   sourceFilter,
   severityFilter,
+  reviewStatusFilter,
+  bookmarkFilter,
+  flagFilter,
   searchQuery,
   onSearchQueryChange,
   onSourceFilterChange,
   onSeverityFilterChange,
+  onReviewStatusFilterChange,
+  onBookmarkFilterChange,
+  onFlagFilterChange,
   stats,
   selectedEventHiddenByFilter,
   isVideoPlaying,
@@ -81,7 +119,10 @@ export function TimelinePanel({
     evidenceFiles,
     sourceFilter,
     severityFilter,
-    searchQuery
+    searchQuery,
+    reviewStatusFilter,
+    bookmarkFilter,
+    flagFilter
   );
 
   useEffect(() => {
@@ -159,6 +200,24 @@ export function TimelinePanel({
             options={severityOptions}
             onChange={onSeverityFilterChange}
           />
+          <FilterRow
+            label="Review"
+            value={reviewStatusFilter}
+            options={reviewStatusOptions}
+            onChange={onReviewStatusFilterChange}
+          />
+          <FilterRow
+            label="Bookmark"
+            value={bookmarkFilter}
+            options={bookmarkOptions}
+            onChange={onBookmarkFilterChange}
+          />
+          <FilterRow
+            label="Flag"
+            value={flagFilter}
+            options={flagOptions}
+            onChange={onFlagFilterChange}
+          />
         </div>
 
         {selectedEventHiddenByFilter && (
@@ -179,6 +238,9 @@ export function TimelinePanel({
             <div className="space-y-0.5">
               {filteredEvents.map((event) => {
                 const isSelected = event.id === selectedEventId;
+                const reviewStatus = event.reviewStatus ?? "unreviewed";
+                const flagCount = event.flags?.length ?? 0;
+                const commentCount = event.commentCount ?? 0;
                 const linkedFiles = event.linkedEvidenceIds
                   .map((id) => evidenceFiles.find((file) => file.id === id))
                   .filter(Boolean) as EvidenceFile[];
@@ -254,6 +316,50 @@ export function TimelinePanel({
                           >
                             {severityStyles[event.severity].label}
                           </Badge>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "h-3.5 px-1 text-[8px] font-normal leading-none",
+                              reviewStatusStyles[reviewStatus].badge,
+                              isSelected && "opacity-90"
+                            )}
+                          >
+                            {reviewStatusStyles[reviewStatus].label}
+                          </Badge>
+                          {event.isBookmarked && (
+                            <span
+                              className="inline-flex h-3.5 items-center text-amber-600"
+                              title="Bookmarked"
+                            >
+                              <Bookmark className="size-2.5 fill-current" />
+                            </span>
+                          )}
+                          {flagCount > 0 && (
+                            <span
+                              className="inline-flex h-3.5 items-center gap-0.5 text-[8px] text-amber-700"
+                              title={`${flagCount} flag${flagCount === 1 ? "" : "s"}`}
+                            >
+                              <Flag className="size-2.5" />
+                              {flagCount}
+                            </span>
+                          )}
+                          {commentCount > 0 && (
+                            <span
+                              className="inline-flex h-3.5 items-center gap-0.5 text-[8px] text-slate-500"
+                              title={`${commentCount} comment${commentCount === 1 ? "" : "s"}`}
+                            >
+                              <MessageSquare className="size-2.5" />
+                              {commentCount}
+                            </span>
+                          )}
+                          {event.assignedTo && (
+                            <span
+                              className="inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-sm bg-violet-100 px-0.5 text-[7px] font-medium text-violet-700"
+                              title={`Assigned to ${event.assignedTo}`}
+                            >
+                              {getAssigneeInitials(event.assignedTo)}
+                            </span>
+                          )}
                           {event.isUploadedTelemetry && (
                             <Badge
                               variant="secondary"

@@ -9,11 +9,13 @@ import type {
   SessionActivityEntry,
   TimelineEvent,
 } from "@/types/claim";
+import type { ReviewSummaryStats } from "@/types/collaboration";
 
 interface InvestigationNotesPanelProps {
   draft: string;
   notes: InvestigationNote[];
   activityLog: SessionActivityEntry[];
+  reviewSummary: ReviewSummaryStats;
   selectedEvent: TimelineEvent | null;
   currentTimestamp: string;
   importMessage: string | null;
@@ -29,6 +31,7 @@ export function InvestigationNotesPanel({
   draft,
   notes,
   activityLog,
+  reviewSummary,
   selectedEvent,
   currentTimestamp,
   importMessage,
@@ -57,6 +60,20 @@ export function InvestigationNotesPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 p-4">
+        <div className="rounded-md border border-slate-200 bg-slate-50/80 px-3 py-2">
+          <p className="text-[12px] font-medium text-slate-700">Review Summary</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-600">
+            <span>Total events: {reviewSummary.totalEvents}</span>
+            <span>Reviewed: {reviewSummary.reviewed}</span>
+            <span>Needs review: {reviewSummary.needsReview}</span>
+            <span>Approved: {reviewSummary.approved}</span>
+            <span>Dismissed: {reviewSummary.dismissed}</span>
+            <span>Bookmarked: {reviewSummary.bookmarked}</span>
+            <span>Flagged: {reviewSummary.flagged}</span>
+            <span>Comments: {reviewSummary.comments}</span>
+          </div>
+        </div>
+
         <textarea
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}

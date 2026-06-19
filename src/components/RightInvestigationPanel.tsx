@@ -6,12 +6,20 @@ import { EventDetailsCard } from "@/components/EventDetailsCard";
 import { TimelinePanel } from "@/components/TimelinePanel";
 import { cn } from "@/lib/utils";
 import type {
+  BookmarkFilter,
   EvidenceFile,
+  FlagFilter,
   InvestigationStats,
+  ReviewStatusFilter,
   SeverityFilter,
   TimelineEvent,
   TimelineSourceFilter,
 } from "@/types/claim";
+import type {
+  EventComment,
+  EventFlagType,
+  ReviewStatus,
+} from "@/types/collaboration";
 import type { EvidenceReference } from "@/types/evidence-reference";
 
 const MIN_PANEL_HEIGHT = 180;
@@ -26,10 +34,16 @@ interface RightInvestigationPanelProps {
   onSelectEvent: (id: string) => void;
   sourceFilter: TimelineSourceFilter;
   severityFilter: SeverityFilter;
+  reviewStatusFilter: ReviewStatusFilter;
+  bookmarkFilter: BookmarkFilter;
+  flagFilter: FlagFilter;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   onSourceFilterChange: (filter: TimelineSourceFilter) => void;
   onSeverityFilterChange: (filter: SeverityFilter) => void;
+  onReviewStatusFilterChange: (filter: ReviewStatusFilter) => void;
+  onBookmarkFilterChange: (filter: BookmarkFilter) => void;
+  onFlagFilterChange: (filter: FlagFilter) => void;
   stats: InvestigationStats;
   selectedEventHiddenByFilter: boolean;
   isVideoPlaying: boolean;
@@ -37,6 +51,12 @@ interface RightInvestigationPanelProps {
   onCopySummary?: () => void;
   onPreviewEvidence?: (evidenceId: string) => void;
   onOpenEvidenceReference?: (reference: EvidenceReference) => void;
+  eventComments?: EventComment[];
+  onReviewStatusChange?: (status: ReviewStatus) => void;
+  onAssignEvent?: (assigneeName: string) => void;
+  onToggleBookmark?: () => void;
+  onAddFlag?: (flagType: EventFlagType) => void;
+  onAddComment?: (body: string) => void;
 }
 
 export function RightInvestigationPanel({
@@ -48,10 +68,16 @@ export function RightInvestigationPanel({
   onSelectEvent,
   sourceFilter,
   severityFilter,
+  reviewStatusFilter,
+  bookmarkFilter,
+  flagFilter,
   searchQuery,
   onSearchQueryChange,
   onSourceFilterChange,
   onSeverityFilterChange,
+  onReviewStatusFilterChange,
+  onBookmarkFilterChange,
+  onFlagFilterChange,
   stats,
   selectedEventHiddenByFilter,
   isVideoPlaying,
@@ -59,6 +85,12 @@ export function RightInvestigationPanel({
   onCopySummary,
   onPreviewEvidence,
   onOpenEvidenceReference,
+  eventComments,
+  onReviewStatusChange,
+  onAssignEvent,
+  onToggleBookmark,
+  onAddFlag,
+  onAddComment,
 }: RightInvestigationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timelineRatio, setTimelineRatio] = useState(DEFAULT_TIMELINE_RATIO);
@@ -116,10 +148,16 @@ export function RightInvestigationPanel({
           onSelectEvent={onSelectEvent}
           sourceFilter={sourceFilter}
           severityFilter={severityFilter}
+          reviewStatusFilter={reviewStatusFilter}
+          bookmarkFilter={bookmarkFilter}
+          flagFilter={flagFilter}
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
           onSourceFilterChange={onSourceFilterChange}
           onSeverityFilterChange={onSeverityFilterChange}
+          onReviewStatusFilterChange={onReviewStatusFilterChange}
+          onBookmarkFilterChange={onBookmarkFilterChange}
+          onFlagFilterChange={onFlagFilterChange}
           stats={stats}
           selectedEventHiddenByFilter={selectedEventHiddenByFilter}
           isVideoPlaying={isVideoPlaying}
@@ -159,6 +197,12 @@ export function RightInvestigationPanel({
             onCopySummary={onCopySummary}
             onPreviewEvidence={onPreviewEvidence}
             onOpenEvidenceReference={onOpenEvidenceReference}
+            eventComments={eventComments}
+            onReviewStatusChange={onReviewStatusChange}
+            onAssignEvent={onAssignEvent}
+            onToggleBookmark={onToggleBookmark}
+            onAddFlag={onAddFlag}
+            onAddComment={onAddComment}
           />
         </div>
       </div>

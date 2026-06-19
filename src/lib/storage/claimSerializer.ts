@@ -104,6 +104,10 @@ export function buildStoredClaimSnapshot(
     severityFilter: workspace.severityFilter,
     searchQuery: workspace.searchQuery,
     aiAnalysis: workspace.aiAnalysis ?? null,
+    eventCollaboration: workspace.eventCollaboration,
+    reviewStatusFilter: workspace.reviewStatusFilter ?? "all",
+    bookmarkFilter: workspace.bookmarkFilter ?? "all",
+    flagFilter: workspace.flagFilter ?? "all",
   };
 }
 
@@ -119,6 +123,10 @@ export function workspaceFromStored(stored: StoredClaim): {
   severityFilter: StoredClaim["severityFilter"];
   searchQuery: string;
   aiAnalysis: StoredClaim["aiAnalysis"];
+  eventCollaboration: StoredClaim["eventCollaboration"];
+  reviewStatusFilter: StoredClaim["reviewStatusFilter"];
+  bookmarkFilter: StoredClaim["bookmarkFilter"];
+  flagFilter: StoredClaim["flagFilter"];
 } {
   return {
     evidenceFiles: stored.evidenceFiles,
@@ -132,5 +140,9 @@ export function workspaceFromStored(stored: StoredClaim): {
     severityFilter: stored.severityFilter ?? "all",
     searchQuery: stored.searchQuery ?? "",
     aiAnalysis: stored.aiAnalysis ?? null,
+    eventCollaboration: stored.eventCollaboration,
+    reviewStatusFilter: stored.reviewStatusFilter ?? "all",
+    bookmarkFilter: stored.bookmarkFilter ?? "all",
+    flagFilter: stored.flagFilter ?? "all",
   };
 }

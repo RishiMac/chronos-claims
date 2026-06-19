@@ -7,20 +7,32 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EvidenceSourceChip } from "@/components/EvidenceSourceChip";
+import { EventCollaborationPanel } from "@/components/EventCollaborationPanel";
 import { SupportingEvidenceList } from "@/components/SupportingEvidenceList";
 import { buildEventSummaryCopy, severityStyles } from "@/lib/eventUtils";
 import { getEventEvidenceReferences } from "@/lib/evidenceReferenceUtils";
 import { cn } from "@/lib/utils";
 import type { ConfidenceLevel, EvidenceFile, TimelineEvent } from "@/types/claim";
 import type { EvidenceReference } from "@/types/evidence-reference";
+import type {
+  EventComment,
+  EventFlagType,
+  ReviewStatus,
+} from "@/types/collaboration";
 
 interface EventDetailsCardProps {
   event: TimelineEvent | null;
   linkedEvidence: EvidenceFile[];
   hiddenByFilter?: boolean;
+  eventComments?: EventComment[];
   onCopySummary?: () => void;
   onPreviewEvidence?: (evidenceId: string) => void;
   onOpenEvidenceReference?: (reference: EvidenceReference) => void;
+  onReviewStatusChange?: (status: ReviewStatus) => void;
+  onAssignEvent?: (assigneeName: string) => void;
+  onToggleBookmark?: () => void;
+  onAddFlag?: (flagType: EventFlagType) => void;
+  onAddComment?: (body: string) => void;
 }
 
 const confidenceStyles: Record<ConfidenceLevel, string> = {
@@ -36,6 +48,12 @@ export function EventDetailsCard({
   onCopySummary,
   onPreviewEvidence,
   onOpenEvidenceReference,
+  eventComments = [],
+  onReviewStatusChange,
+  onAssignEvent,
+  onToggleBookmark,
+  onAddFlag,
+  onAddComment,
 }: EventDetailsCardProps) {
   const [copied, setCopied] = useState(false);
 
@@ -177,12 +195,28 @@ export function EventDetailsCard({
           </div>
         </div>
 
+        {onReviewStatusChange &&
+          onAssignEvent &&
+          onToggleBookmark &&
+          onAddFlag &&
+          onAddComment && (
+            <EventCollaborationPanel
+              event={event}
+              comments={eventComments}
+              onReviewStatusChange={onReviewStatusChange}
+              onAssign={onAssignEvent}
+              onToggleBookmark={onToggleBookmark}
+              onAddFlag={onAddFlag}
+              onAddComment={onAddComment}
+            />
+          )}
+
         <div>
           <label
             htmlFor="event-notes"
             className="text-[12px] text-slate-500"
           >
-            Review notes
+            Event notes
           </label>
           <div
             id="event-notes"

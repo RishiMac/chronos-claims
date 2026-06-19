@@ -21,6 +21,14 @@ export type AuditActivityAction =
   | "regenerated_ai_observations"
   | "cleared_ai_observations"
   | "generated_claim_summary"
+  | "changed_review_status"
+  | "assigned_event"
+  | "bookmarked_event"
+  | "unbookmarked_event"
+  | "flagged_event"
+  | "commented_on_event"
+  | "dismissed_event"
+  | "approved_event"
   | "general";
 
 /** @deprecated Use AuditActivityAction */
@@ -29,6 +37,7 @@ export type AuditActivityType = AuditActivityAction;
 export interface AuditActivity {
   id: string;
   claimId: string;
+  eventId?: string;
   timestamp: string;
   action: AuditActivityAction;
   details: string;

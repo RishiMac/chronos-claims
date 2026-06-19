@@ -4,11 +4,13 @@ import type { AuditActivity, AuditActivityAction } from "@/types/audit-activity"
 export function createActivityEntry(
   claimId: string,
   action: AuditActivityAction,
-  details: string
+  details: string,
+  eventId?: string
 ): AuditActivity {
   return {
     id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     claimId,
+    eventId,
     timestamp: new Date().toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",

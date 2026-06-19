@@ -6,7 +6,15 @@ import type {
   SeverityFilter,
   TimelineEvent,
   TimelineSourceFilter,
+  BookmarkFilter,
+  FlagFilter,
+  ReviewStatusFilter,
 } from "@/types/claim";
+import {
+  eventMatchesBookmarkFilter,
+  eventMatchesFlagFilter,
+  eventMatchesReviewStatusFilter,
+} from "@/lib/collaboration/collaborationUtils";
 
 export const severityStyles: Record<
   EventSeverity,
@@ -96,7 +104,10 @@ export function filterTimelineEvents(
   evidenceFiles: EvidenceFile[],
   sourceFilter: TimelineSourceFilter,
   severityFilter: SeverityFilter,
-  searchQuery = ""
+  searchQuery = "",
+  reviewStatusFilter: ReviewStatusFilter = "all",
+  bookmarkFilter: BookmarkFilter = "all",
+  flagFilter: FlagFilter = "all"
 ): TimelineEvent[] {
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -105,6 +116,15 @@ export function filterTimelineEvents(
       return false;
     }
     if (!eventMatchesSeverityFilter(event, severityFilter)) {
+      return false;
+    }
+    if (!eventMatchesReviewStatusFilter(event, reviewStatusFilter)) {
+      return false;
+    }
+    if (!eventMatchesBookmarkFilter(event, bookmarkFilter)) {
+      return false;
+    }
+    if (!eventMatchesFlagFilter(event, flagFilter)) {
       return false;
     }
     if (!normalizedQuery) return true;

@@ -5,7 +5,11 @@ import type {
   SerializedTelematics,
   TimelineSourceFilter,
   SeverityFilter,
+  BookmarkFilter,
+  FlagFilter,
+  ReviewStatusFilter,
 } from "@/types/claim";
+import type { ClaimEventCollaboration } from "@/types/collaboration";
 
 /** Persisted claim record — workspace state bundled for localStorage */
 export interface StoredClaim {
@@ -22,6 +26,10 @@ export interface StoredClaim {
   searchQuery: string;
   isSample: boolean;
   aiAnalysis?: StoredAiAnalysis | null;
+  eventCollaboration?: ClaimEventCollaboration;
+  reviewStatusFilter?: ReviewStatusFilter;
+  bookmarkFilter?: BookmarkFilter;
+  flagFilter?: FlagFilter;
 }
 
 export interface ClaimWorkspaceSnapshot {
@@ -36,4 +44,8 @@ export interface ClaimWorkspaceSnapshot {
   severityFilter: SeverityFilter;
   searchQuery: string;
   aiAnalysis?: StoredAiAnalysis | null;
+  eventCollaboration?: ClaimEventCollaboration;
+  reviewStatusFilter?: ReviewStatusFilter;
+  bookmarkFilter?: BookmarkFilter;
+  flagFilter?: FlagFilter;
 }

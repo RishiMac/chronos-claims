@@ -1,5 +1,6 @@
 "use client";
 
+import { Bookmark, Flag, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -23,6 +24,9 @@ import {
   type SharePackageViewData,
 } from "@/lib/share/shareService";
 import { getEventEvidenceReferences } from "@/lib/evidenceReferenceUtils";
+import {
+  reviewStatusStyles,
+} from "@/lib/collaboration/collaborationUtils";
 
 interface SharePackagePageClientProps {
   token: string;
@@ -336,6 +340,9 @@ export function SharePackagePageClient({ token }: SharePackagePageClientProps) {
                       event,
                       evidence
                     );
+                    const reviewStatus = event.reviewStatus ?? "unreviewed";
+                    const flagCount = event.flags?.length ?? 0;
+                    const commentCount = event.commentCount ?? 0;
 
                     return (
                     <li
@@ -351,6 +358,37 @@ export function SharePackagePageClient({ token }: SharePackagePageClientProps) {
                       <p className="mt-0.5 text-[12px] leading-snug text-slate-600">
                         {event.description}
                       </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        <Badge
+                          variant="outline"
+                          className={`h-4 px-1.5 text-[9px] font-normal ${reviewStatusStyles[reviewStatus].badge}`}
+                        >
+                          {reviewStatusStyles[reviewStatus].label}
+                        </Badge>
+                        {event.assignedTo && (
+                          <span className="text-[10px] text-slate-500">
+                            Assigned: {event.assignedTo}
+                          </span>
+                        )}
+                        {event.isBookmarked && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-700">
+                            <Bookmark className="size-3 fill-current" />
+                            Bookmarked
+                          </span>
+                        )}
+                        {flagCount > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-700">
+                            <Flag className="size-3" />
+                            {flagCount} flag{flagCount === 1 ? "" : "s"}
+                          </span>
+                        )}
+                        {commentCount > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-500">
+                            <MessageSquare className="size-3" />
+                            {commentCount} comment{commentCount === 1 ? "" : "s"}
+                          </span>
+                        )}
+                      </div>
                       {sections.evidenceList && supportingReferences.length > 0 && (
                         <div className="mt-2 border-t border-slate-100 pt-2">
                           <p className="text-[11px] font-medium text-slate-700">

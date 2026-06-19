@@ -1,4 +1,5 @@
 import type { EvidenceReference } from "@/types/evidence-reference";
+import type { EventFlagType, ReviewStatus } from "@/types/collaboration";
 
 export type EvidenceFileType =
   | "pdf"
@@ -24,6 +25,12 @@ export type TimelineSourceFilter =
   | "ai";
 
 export type SeverityFilter = "all" | "info" | "moderate" | "critical";
+
+export type {
+  BookmarkFilter,
+  FlagFilter,
+  ReviewStatusFilter,
+} from "@/types/collaboration";
 
 export interface EvidenceMetadata {
   uploadedAt: string;
@@ -71,6 +78,11 @@ export interface TimelineEvent {
   evidenceReferences?: EvidenceReference[];
   sortDate?: Date;
   rowIndex?: number;
+  reviewStatus?: ReviewStatus;
+  assignedTo?: string;
+  isBookmarked?: boolean;
+  flags?: EventFlagType[];
+  commentCount?: number;
 }
 
 export interface TelematicsRow {

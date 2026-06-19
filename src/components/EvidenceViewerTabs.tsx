@@ -9,6 +9,7 @@ import { VideoViewer } from "@/components/VideoViewer";
 import { cn } from "@/lib/utils";
 import type { StoredAiAnalysis } from "@/types/ai-types";
 import type { EvidenceReference } from "@/types/evidence-reference";
+import type { ReviewSummaryStats } from "@/types/collaboration";
 import type {
   EvidenceFile,
   InvestigationNote,
@@ -56,6 +57,7 @@ interface EvidenceViewerTabsProps {
   notesDraft: string;
   investigationNotes: InvestigationNote[];
   activityLog: SessionActivityEntry[];
+  reviewSummary: ReviewSummaryStats;
   currentTimestamp: string;
   importMessage: string | null;
   onNotesDraftChange: (value: string) => void;
@@ -113,6 +115,7 @@ export function EvidenceViewerTabs({
   notesDraft,
   investigationNotes,
   activityLog,
+  reviewSummary,
   currentTimestamp,
   importMessage,
   onNotesDraftChange,
@@ -222,6 +225,7 @@ export function EvidenceViewerTabs({
             draft={notesDraft}
             notes={investigationNotes}
             activityLog={activityLog}
+            reviewSummary={reviewSummary}
             selectedEvent={selectedEvent}
             currentTimestamp={currentTimestamp}
             importMessage={importMessage}

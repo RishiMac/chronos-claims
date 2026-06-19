@@ -90,6 +90,7 @@
     --color-amber-200: #fee685;
     --color-amber-300: #ffd236;
     --color-amber-500: #f99c00;
+    --color-amber-600: #dd7400;
     --color-amber-700: #b75000;
     --color-amber-800: #953d00;
     --color-amber-900: #7b3306;
@@ -110,6 +111,8 @@
     --color-blue-200: #bedbff;
     --color-blue-600: #155dfc;
     --color-blue-700: #1447e6;
+    --color-violet-100: #ede9fe;
+    --color-violet-700: #7008e7;
     --color-slate-50: #f8fafc;
     --color-slate-100: #f1f5f9;
     --color-slate-200: #e2e8f0;
@@ -167,6 +170,7 @@
       --color-amber-200: lab(91.7203% -.505269 49.9084);
       --color-amber-300: lab(86.4156% 6.13147 78.3961);
       --color-amber-500: lab(72.7183% 31.8672 97.9407);
+      --color-amber-600: lab(60.3514% 40.5624 87.1228);
       --color-amber-700: lab(47.2709% 42.9082 69.2966);
       --color-amber-800: lab(37.8822% 37.1699 52.2718);
       --color-amber-900: lab(31.2288% 30.2627 40.0378);
@@ -187,6 +191,8 @@
       --color-blue-200: lab(86.15% -4.04379 -21.0797);
       --color-blue-600: lab(44.0605% 29.0279 -86.0352);
       --color-blue-700: lab(36.9089% 35.0961 -85.6872);
+      --color-violet-100: lab(93.0838% 4.35197 -9.88284);
+      --color-violet-700: lab(35.2783% 67.9912 -88.793);
       --color-slate-50: lab(98.1434% -.369519 -1.05966);
       --color-slate-100: lab(96.286% -.852436 -2.46847);
       --color-slate-200: lab(91.7353% -.998765 -4.76968);
@@ -765,6 +771,11 @@
     height: calc(var(--spacing) * 2);
   }
 
+  .size-2\.5 {
+    width: calc(var(--spacing) * 2.5);
+    height: calc(var(--spacing) * 2.5);
+  }
+
   .size-3 {
     width: calc(var(--spacing) * 3);
     height: calc(var(--spacing) * 3);
@@ -866,6 +877,10 @@
     height: 100%;
   }
 
+  .max-h-28 {
+    max-height: calc(var(--spacing) * 28);
+  }
+
   .max-h-40 {
     max-height: calc(var(--spacing) * 40);
   }
@@ -876,10 +891,6 @@
 
   .max-h-\[85vh\] {
     max-height: 85vh;
-  }
-
-  .max-h-\[90vh\] {
-    max-height: 90vh;
   }
 
   .max-h-\[420px\] {
@@ -954,6 +965,14 @@
     min-width: 0;
   }
 
+  .min-w-3\.5 {
+    min-width: calc(var(--spacing) * 3.5);
+  }
+
+  .min-w-4 {
+    min-width: calc(var(--spacing) * 4);
+  }
+
   .min-w-\[4\.75rem\] {
     min-width: 4.75rem;
   }
@@ -1010,6 +1029,10 @@
 
   .touch-none {
     touch-action: none;
+  }
+
+  .resize-none {
+    resize: none;
   }
 
   .resize-y {
@@ -1146,6 +1169,10 @@
 
   .gap-x-2 {
     column-gap: calc(var(--spacing) * 2);
+  }
+
+  .gap-x-3 {
+    column-gap: calc(var(--spacing) * 3);
   }
 
   .gap-x-4 {
@@ -1307,6 +1334,10 @@
     .border-amber-200\/80 {
       border-color: color-mix(in oklab, var(--color-amber-200) 80%, transparent);
     }
+  }
+
+  .border-amber-300 {
+    border-color: var(--color-amber-300);
   }
 
   .border-amber-300\/70 {
@@ -1609,6 +1640,10 @@
     background-color: var(--color-slate-950);
   }
 
+  .bg-violet-100 {
+    background-color: var(--color-violet-100);
+  }
+
   .bg-white {
     background-color: var(--color-white);
   }
@@ -1825,10 +1860,6 @@
     padding-block: calc(var(--spacing) * 4);
   }
 
-  .py-5 {
-    padding-block: calc(var(--spacing) * 5);
-  }
-
   .py-6 {
     padding-block: calc(var(--spacing) * 6);
   }
@@ -1957,6 +1988,10 @@
     font-size: 3.2px;
   }
 
+  .text-\[7px\] {
+    font-size: 7px;
+  }
+
   .text-\[8px\] {
     font-size: 8px;
   }
@@ -2030,6 +2065,10 @@
 
   .whitespace-pre-wrap {
     white-space: pre-wrap;
+  }
+
+  .text-amber-600 {
+    color: var(--color-amber-600);
   }
 
   .text-amber-700 {
@@ -2160,6 +2199,10 @@
     color: var(--color-slate-900);
   }
 
+  .text-violet-700 {
+    color: var(--color-violet-700);
+  }
+
   .text-white {
     color: var(--color-white);
   }
@@ -2196,6 +2239,10 @@
 
   .opacity-50 {
     opacity: .5;
+  }
+
+  .opacity-90 {
+    opacity: .9;
   }
 
   .opacity-100 {
@@ -2416,6 +2463,12 @@
   @media (hover: hover) {
     .hover\:bg-amber-50:hover {
       background-color: var(--color-amber-50);
+    }
+  }
+
+  @media (hover: hover) {
+    .hover\:bg-amber-100:hover {
+      background-color: var(--color-amber-100);
     }
   }
 

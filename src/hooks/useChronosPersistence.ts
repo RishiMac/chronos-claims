@@ -23,9 +23,13 @@ import type { AuditActivity, AuditActivityAction } from "@/types/audit-activity"
 import type { StoredInvestigationNote } from "@/types/investigation-note";
 import type { SharePackage } from "@/types/share-package";
 import type { StoredClaim } from "@/types/stored-claim";
+import type { ClaimEventCollaboration } from "@/types/collaboration";
 import type {
+  BookmarkFilter,
   Claim,
+  FlagFilter,
   ParsedTelematics,
+  ReviewStatusFilter,
   SeverityFilter,
   TimelineSourceFilter,
 } from "@/types/claim";
@@ -125,6 +129,10 @@ export function useChronosPersistence() {
             severityFilter: workspace.severityFilter,
             searchQuery: workspace.searchQuery,
             aiAnalysis: workspace.aiAnalysis ?? null,
+            eventCollaboration: workspace.eventCollaboration,
+            reviewStatusFilter: workspace.reviewStatusFilter,
+            bookmarkFilter: workspace.bookmarkFilter,
+            flagFilter: workspace.flagFilter,
           });
         })
       );
@@ -168,6 +176,10 @@ export function buildWorkspacePersistPayload(input: {
   sourceFilter: TimelineSourceFilter;
   severityFilter: SeverityFilter;
   searchQuery: string;
+  eventCollaboration?: ClaimEventCollaboration;
+  reviewStatusFilter?: ReviewStatusFilter;
+  bookmarkFilter?: BookmarkFilter;
+  flagFilter?: FlagFilter;
 }) {
   return {
     evidenceFiles: input.evidenceFiles,
@@ -180,6 +192,10 @@ export function buildWorkspacePersistPayload(input: {
     sourceFilter: input.sourceFilter,
     severityFilter: input.severityFilter,
     searchQuery: input.searchQuery,
+    eventCollaboration: input.eventCollaboration,
+    reviewStatusFilter: input.reviewStatusFilter,
+    bookmarkFilter: input.bookmarkFilter,
+    flagFilter: input.flagFilter,
   };
 }
 

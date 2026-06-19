@@ -22,6 +22,13 @@ import {
 import { aiTimelineEventsToTimelineEvents } from "@/lib/ai/aiTimelineBridge";
 import { formatClaimDisplayTitle } from "@/lib/claimDisplay";
 import { createActivityEntry } from "@/lib/audit/activityUtils";
+import {
+  computeReviewSummary,
+  createCollaborationId,
+  enrichTimelineEventsWithCollaboration,
+  formatCommentTimestamp,
+  isEventBookmarked,
+} from "@/lib/collaboration/collaborationUtils";
 import { detectTelematicsEvents } from "@/lib/detectTelematicsEvents";
 import {
   createPreviewObjectUrl,
@@ -104,14 +111,30 @@ import {
   telematicsRowsToSpeedData,
 } from "@/lib/telematicsTransforms";
 import type {
+  BookmarkFilter,
   Claim,
   EvidenceFile,
+  FlagFilter,
   ParsedTelematics,
+  ReviewStatusFilter,
   SessionActivityEntry,
   SeverityFilter,
   TelematicsUploadState,
   TimelineSourceFilter,
 } from "@/types/claim";
+import {
+  createEmptyCollaboration,
+  DEMO_REVIEWER_NAME,
+  FLAG_TYPE_LABELS,
+  REVIEW_STATUS_LABELS,
+  type ClaimEventCollaboration,
+  type EventBookmark,
+  type EventComment,
+  type EventFlag,
+  type EventFlagType,
+  type EventAssignment,
+  type ReviewStatus,
+} from "@/types/collaboration";
 import type { ViewerTab } from "@/components/EvidenceViewerTabs";
 
 function createEvidenceId() {
@@ -178,6 +201,12 @@ export function InvestigationWorkspace() {
     useState<TimelineSourceFilter>("all");
   const [severityFilter, setSeverityFilter] =
     useState<SeverityFilter>("all");
+  const [reviewStatusFilter, setReviewStatusFilter] =
+    useState<ReviewStatusFilter>("all");
+  const [bookmarkFilter, setBookmarkFilter] = useState<BookmarkFilter>("all");
+  const [flagFilter, setFlagFilter] = useState<FlagFilter>("all");
+  const [eventCollaboration, setEventCollaboration] =
+    useState<ClaimEventCollaboration>(createEmptyCollaboration());
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(18);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
@@ -233,6 +262,10 @@ export function InvestigationWorkspace() {
     setNotesDraft(workspace.notesDraft);
     setSourceFilter(workspace.sourceFilter);
     setSeverityFilter(workspace.severityFilter);
+    setReviewStatusFilter(workspace.reviewStatusFilter ?? "all");
+    setBookmarkFilter(workspace.bookmarkFilter ?? "all");
+    setFlagFilter(workspace.flagFilter ?? "all");
+    setEventCollaboration(workspace.eventCollaboration ?? createEmptyCollaboration());
     setSearchQuery(workspace.searchQuery);
     setAiAnalysis(normalizeStoredAiAnalysis(workspace.aiAnalysis));
     setAiGenerationNotice(null);
@@ -249,9 +282,9 @@ export function InvestigationWorkspace() {
   }, []);
 
   const logActivity = useCallback(
-    (action: AuditActivityAction, details: string) => {
+    (action: AuditActivityAction, details: string, eventId?: string) => {
       if (!activeClaimId) return;
-      const entry = createActivityEntry(activeClaimId, action, details);
+      const entry = createActivityEntry(activeClaimId, action, details, eventId);
       setAllActivities((previous) => [entry, ...previous]);
     },
     [activeClaimId, setAllActivities]
@@ -292,8 +325,12 @@ export function InvestigationWorkspace() {
       notesDraft,
       sourceFilter,
       severityFilter,
+      reviewStatusFilter,
+      bookmarkFilter,
+      flagFilter,
       searchQuery,
       aiAnalysis,
+      eventCollaboration,
     });
   }, [
     hydrated,
@@ -307,8 +344,12 @@ export function InvestigationWorkspace() {
     notesDraft,
     sourceFilter,
     severityFilter,
+    reviewStatusFilter,
+    bookmarkFilter,
+    flagFilter,
     searchQuery,
     aiAnalysis,
+    eventCollaboration,
     updateStoredClaimWorkspace,
   ]);
 
@@ -340,8 +381,8 @@ export function InvestigationWorkspace() {
         aiTimelineEventsToTimelineEvents(aiAnalysis.timelineEvents)
       );
     }
-    return events;
-  }, [telematicsByEvidenceId, activeClaim.timelineEvents, aiAnalysis]);
+    return enrichTimelineEventsWithCollaboration(events, eventCollaboration);
+  }, [telematicsByEvidenceId, activeClaim.timelineEvents, aiAnalysis, eventCollaboration]);
 
   const speedData = useMemo(() => {
     if (!activeTelematics) return activeClaim.speedData;
@@ -433,7 +474,10 @@ export function InvestigationWorkspace() {
       evidenceFiles,
       sourceFilter,
       severityFilter,
-      searchQuery
+      searchQuery,
+      reviewStatusFilter,
+      bookmarkFilter,
+      flagFilter
     );
     return !visible.some((event) => event.id === selectedEvent.id);
   }, [
@@ -443,6 +487,9 @@ export function InvestigationWorkspace() {
     sourceFilter,
     severityFilter,
     searchQuery,
+    reviewStatusFilter,
+    bookmarkFilter,
+    flagFilter,
   ]);
 
   const playbackEvent = useMemo(() => {
@@ -1310,6 +1357,160 @@ export function InvestigationWorkspace() {
     logActivity("opened_share_package", "Opened share package in new tab");
   }, [logActivity]);
 
+  const selectedEventComments = useMemo(() => {
+    if (!selectedEventId) return [];
+    return eventCollaboration.comments
+      .filter((comment) => comment.eventId === selectedEventId)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  }, [eventCollaboration.comments, selectedEventId]);
+
+  const reviewSummary = useMemo(
+    () => computeReviewSummary(timelineEvents),
+    [timelineEvents]
+  );
+
+  const handleReviewStatusChange = useCallback(
+    (status: ReviewStatus) => {
+      if (!selectedEventId) return;
+      setEventCollaboration((previous) => ({
+        ...previous,
+        reviewStatusByEventId: {
+          ...previous.reviewStatusByEventId,
+          [selectedEventId]: status,
+        },
+      }));
+      logActivity(
+        "changed_review_status",
+        `Changed review status to ${REVIEW_STATUS_LABELS[status]}`,
+        selectedEventId
+      );
+      if (status === "approved") {
+        logActivity(
+          "approved_event",
+          "Marked event as approved after review",
+          selectedEventId
+        );
+      }
+      if (status === "dismissed") {
+        logActivity(
+          "dismissed_event",
+          "Dismissed event from active review queue",
+          selectedEventId
+        );
+      }
+    },
+    [selectedEventId, logActivity]
+  );
+
+  const handleAssignEvent = useCallback(
+    (assigneeName: string) => {
+      if (!selectedEventId || !activeClaimId) return;
+      const assignment: EventAssignment = {
+        id: createCollaborationId("assign"),
+        claimId: activeClaimId,
+        eventId: selectedEventId,
+        assigneeName,
+        status: "assigned",
+        createdAt: new Date().toISOString(),
+      };
+      setEventCollaboration((previous) => ({
+        ...previous,
+        assignments: [...previous.assignments, assignment],
+      }));
+      logActivity(
+        "assigned_event",
+        `Assigned event to ${assigneeName}`,
+        selectedEventId
+      );
+    },
+    [activeClaimId, selectedEventId, logActivity]
+  );
+
+  const handleToggleBookmark = useCallback(() => {
+    if (!selectedEventId || !activeClaimId) return;
+    const bookmarked = isEventBookmarked(eventCollaboration, selectedEventId);
+    if (bookmarked) {
+      setEventCollaboration((previous) => ({
+        ...previous,
+        bookmarks: previous.bookmarks.filter(
+          (item) => item.eventId !== selectedEventId
+        ),
+      }));
+      logActivity(
+        "unbookmarked_event",
+        "Removed bookmark from event",
+        selectedEventId
+      );
+      return;
+    }
+
+    const bookmark: EventBookmark = {
+      id: createCollaborationId("bookmark"),
+      claimId: activeClaimId,
+      eventId: selectedEventId,
+      createdAt: new Date().toISOString(),
+    };
+    setEventCollaboration((previous) => ({
+      ...previous,
+      bookmarks: [...previous.bookmarks, bookmark],
+    }));
+    logActivity(
+      "bookmarked_event",
+      "Bookmarked event for follow-up review",
+      selectedEventId
+    );
+  }, [activeClaimId, selectedEventId, eventCollaboration, logActivity]);
+
+  const handleAddFlag = useCallback(
+    (flagType: EventFlagType) => {
+      if (!selectedEventId || !activeClaimId) return;
+      const flag: EventFlag = {
+        id: createCollaborationId("flag"),
+        claimId: activeClaimId,
+        eventId: selectedEventId,
+        flagType,
+        createdAt: new Date().toISOString(),
+      };
+      setEventCollaboration((previous) => ({
+        ...previous,
+        flags: [...previous.flags, flag],
+      }));
+      logActivity(
+        "flagged_event",
+        `Added flag: ${FLAG_TYPE_LABELS[flagType]}`,
+        selectedEventId
+      );
+    },
+    [activeClaimId, selectedEventId, logActivity]
+  );
+
+  const handleAddComment = useCallback(
+    (body: string) => {
+      if (!selectedEventId || !activeClaimId) return;
+      const comment: EventComment = {
+        id: createCollaborationId("comment"),
+        claimId: activeClaimId,
+        eventId: selectedEventId,
+        authorName: DEMO_REVIEWER_NAME,
+        body,
+        createdAt: formatCommentTimestamp(),
+      };
+      setEventCollaboration((previous) => ({
+        ...previous,
+        comments: [...previous.comments, comment],
+      }));
+      logActivity(
+        "commented_on_event",
+        "Added review comment on event",
+        selectedEventId
+      );
+    },
+    [activeClaimId, selectedEventId, logActivity]
+  );
+
   const handleCopySummary = useCallback(() => {
     logActivity("copied_event_summary", "Copied event summary");
   }, [logActivity]);
@@ -1446,6 +1647,7 @@ export function InvestigationWorkspace() {
             onInsertTimestamp={handleInsertTimestamp}
             onAddNote={handleAddNote}
             activityLog={activityLog}
+            reviewSummary={reviewSummary}
             importMessage={importMessage}
             onExportSession={handleExportSession}
             onImportSession={handleImportSession}
@@ -1470,8 +1672,14 @@ export function InvestigationWorkspace() {
           onSelectEvent={handleSelectEvent}
           sourceFilter={sourceFilter}
           severityFilter={severityFilter}
+          reviewStatusFilter={reviewStatusFilter}
+          bookmarkFilter={bookmarkFilter}
+          flagFilter={flagFilter}
           onSourceFilterChange={setSourceFilter}
           onSeverityFilterChange={setSeverityFilter}
+          onReviewStatusFilterChange={setReviewStatusFilter}
+          onBookmarkFilterChange={setBookmarkFilter}
+          onFlagFilterChange={setFlagFilter}
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
           stats={stats}
@@ -1481,6 +1689,12 @@ export function InvestigationWorkspace() {
           onCopySummary={handleCopySummary}
           onPreviewEvidence={handlePreviewEvidence}
           onOpenEvidenceReference={handleOpenEvidenceReference}
+          eventComments={selectedEventComments}
+          onReviewStatusChange={handleReviewStatusChange}
+          onAssignEvent={handleAssignEvent}
+          onToggleBookmark={handleToggleBookmark}
+          onAddFlag={handleAddFlag}
+          onAddComment={handleAddComment}
         />
       </div>
 

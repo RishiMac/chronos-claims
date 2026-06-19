@@ -30,6 +30,10 @@ import {
   collectUploadedTimelineEvents,
   mergeTimelineEvents,
 } from "@/lib/telematicsTransforms";
+import {
+  enrichTimelineEventsWithCollaboration,
+} from "@/lib/collaboration/collaborationUtils";
+import { createEmptyCollaboration } from "@/types/collaboration";
 import type { AuditActivity } from "@/types/audit-activity";
 import type { Claim, EvidenceFile, TimelineEvent } from "@/types/claim";
 import type {
@@ -176,7 +180,10 @@ function resolveClaimTimelineEvents(claimId: string): TimelineEvent[] {
     );
   }
 
-  return events;
+  return enrichTimelineEventsWithCollaboration(
+    events,
+    stored.eventCollaboration ?? createEmptyCollaboration()
+  );
 }
 
 function resolveClaimEvidence(claimId: string): EvidenceFile[] {
