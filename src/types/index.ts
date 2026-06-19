@@ -1,6 +1,18 @@
 export type { TelemetryRecord, TelemetryMetrics, TelematicsFormat } from "./telemetry";
 export type { User } from "./user";
-export type { SharePackage } from "./share-package";
+export type {
+  SharePackage,
+  SharePackageCreateInput,
+  SharePackageSettings,
+  SharePackageStatus,
+  ShareAccessMode,
+  ShareExpirationOption,
+  ShareIncludedSections,
+} from "./share-package";
+export {
+  DEFAULT_SHARE_INCLUDED_SECTIONS,
+  DEFAULT_SHARE_SETTINGS,
+} from "./share-package";
 export type { AuditActivity, AuditActivityAction, AuditActivityType, SessionActivityEntry } from "./audit-activity";
 export type {
   InvestigationNote,

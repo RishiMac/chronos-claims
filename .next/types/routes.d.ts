@@ -3,7 +3,7 @@
 
 type AppRoutes = "/" | "/share/[token]"
 type PageRoutes = never
-type LayoutRoutes = "/"
+type LayoutRoutes = "/" | "/share"
 type RedirectRoutes = never
 type RewriteRoutes = never
 type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes
@@ -11,6 +11,7 @@ type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRo
 
 interface ParamMap {
   "/": {}
+  "/share": {}
   "/share/[token]": { "token": string; }
 }
 
@@ -19,6 +20,7 @@ export type ParamsOf<Route extends Routes> = ParamMap[Route]
 
 interface LayoutSlotMap {
   "/": never
+  "/share": never
 }
 
 

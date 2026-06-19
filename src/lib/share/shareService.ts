@@ -1,16 +1,22 @@
 import { formatClaimDisplayTitle } from "@/lib/claimDisplay";
+import { SHARE_CREATED_BY_PLACEHOLDER } from "@/lib/share/constants";
 import {
-  SHARE_CREATED_BY_PLACEHOLDER,
-  SHARE_EXPIRATION_DAYS,
-} from "@/lib/share/constants";
+  hashPasscode,
+  computeExpiresAt,
+  verifyPasscodeHash,
+} from "@/lib/share/passcodeUtils";
 import {
   generateShareToken,
+  getSharePackageStatus,
   getShareUrl,
   isExpired,
+  isSharePackageAccessible,
   normalizeSharePackage,
 } from "@/lib/share/sharePackageUtils";
 import {
+  getActivities,
   getClaims,
+  getNotes,
   getSharePackages,
   saveSharePackages,
 } from "@/lib/storage/chronosStorage";
@@ -19,38 +25,68 @@ import {
   collectUploadedTimelineEvents,
   mergeTimelineEvents,
 } from "@/lib/telematicsTransforms";
+import type { AuditActivity } from "@/types/audit-activity";
 import type { Claim, EvidenceFile, TimelineEvent } from "@/types/claim";
-import type { SharePackage } from "@/types/share-package";
+import type {
+  SharePackage,
+  SharePackageCreateInput,
+  SharePackageSettings,
+} from "@/types/share-package";
 
 export {
   generateShareToken,
+  getSharePackageStatus,
   getShareUrl,
   isExpired,
+  isSharePackageAccessible,
   normalizeSharePackage,
 } from "@/lib/share/sharePackageUtils";
 
-export function createSharePackage(input: {
-  claimId: string;
-  evidenceFiles: EvidenceFile[];
-  timelineEvents: TimelineEvent[];
-}): SharePackage {
-  const now = new Date();
-  const expires = new Date(now);
-  expires.setDate(expires.getDate() + SHARE_EXPIRATION_DAYS);
-  const shareToken = generateShareToken();
+export { verifyPasscodeHash } from "@/lib/share/passcodeUtils";
 
-  const sharePackage: SharePackage = {
+function updatePackageAtIndex(
+  packages: SharePackage[],
+  index: number,
+  patch: Partial<SharePackage>
+): SharePackage {
+  const updated = normalizeSharePackage({ ...packages[index], ...patch });
+  packages[index] = updated;
+  saveSharePackages(packages);
+  return updated;
+}
+
+export async function createSharePackage(
+  input: SharePackageCreateInput
+): Promise<SharePackage> {
+  const now = new Date();
+  const shareToken = generateShareToken();
+  const passcodeHash =
+    input.accessMode === "passcode_required" && input.passcode
+      ? await hashPasscode(input.passcode)
+      : undefined;
+
+  const sharePackage: SharePackage = normalizeSharePackage({
     id: `share-${Date.now()}`,
     claimId: input.claimId,
     createdAt: now.toISOString(),
-    expiresAt: expires.toISOString(),
+    expiresAt: computeExpiresAt(input.expiration, now),
     shareToken,
     url: getShareUrl(shareToken),
-    includedEvidenceIds: input.evidenceFiles.map((file) => file.id),
-    includedEventIds: input.timelineEvents.map((event) => event.id),
+    includedEvidenceIds: input.includedSections.evidenceList
+      ? input.evidenceFiles.map((file) => file.id)
+      : [],
+    includedEventIds: input.includedSections.timeline
+      ? input.timelineEvents.map((event) => event.id)
+      : [],
     createdBy: SHARE_CREATED_BY_PLACEHOLDER,
     accessCount: 0,
-  };
+    expiration: input.expiration,
+    accessMode: input.accessMode,
+    includedSections: input.includedSections,
+    passcodeHash,
+    revoked: false,
+    revokedAt: null,
+  });
 
   const packages = [...getSharePackages(), sharePackage];
   saveSharePackages(packages);
@@ -82,13 +118,20 @@ export function incrementAccessCount(shareToken: string): SharePackage | null {
   const index = packages.findIndex((pkg) => pkg.shareToken === shareToken);
   if (index === -1) return null;
 
-  const updated = normalizeSharePackage({
-    ...packages[index],
+  return updatePackageAtIndex(packages, index, {
     accessCount: (packages[index].accessCount ?? 0) + 1,
   });
-  packages[index] = updated;
-  saveSharePackages(packages);
-  return updated;
+}
+
+export function revokeSharePackage(shareToken: string): SharePackage | null {
+  const packages = getSharePackages();
+  const index = packages.findIndex((pkg) => pkg.shareToken === shareToken);
+  if (index === -1) return null;
+
+  return updatePackageAtIndex(packages, index, {
+    revoked: true,
+    revokedAt: new Date().toISOString(),
+  });
 }
 
 export interface SharePackageViewData {
@@ -97,7 +140,10 @@ export interface SharePackageViewData {
   claimTitle: string;
   events: TimelineEvent[];
   evidence: EvidenceFile[];
-  expired: boolean;
+  notes: { id: string; body: string; createdAt: string }[];
+  activities: AuditActivity[];
+  status: ReturnType<typeof getSharePackageStatus>;
+  accessible: boolean;
 }
 
 function resolveClaimTimelineEvents(claimId: string): TimelineEvent[] {
@@ -127,10 +173,22 @@ export function getSharePackageViewData(
   const stored = getClaims().find((item) => item.claim.id === sharePackage.claimId);
   if (!stored) return null;
 
+  const status = getSharePackageStatus(sharePackage);
+  const accessible = isSharePackageAccessible(sharePackage);
   const allEvents = resolveClaimTimelineEvents(sharePackage.claimId);
   const allEvidence = resolveClaimEvidence(sharePackage.claimId);
   const eventIdSet = new Set(sharePackage.includedEventIds);
   const evidenceIdSet = new Set(sharePackage.includedEvidenceIds);
+  const notes = getNotes()
+    .filter((note) => note.claimId === sharePackage.claimId)
+    .map((note) => ({
+      id: note.id,
+      body: note.body,
+      createdAt: note.createdAt,
+    }));
+  const activities = getActivities().filter(
+    (entry) => entry.claimId === sharePackage.claimId
+  );
 
   return {
     sharePackage,
@@ -138,7 +196,10 @@ export function getSharePackageViewData(
     claimTitle: formatClaimDisplayTitle(stored.claim),
     events: allEvents.filter((event) => eventIdSet.has(event.id)),
     evidence: allEvidence.filter((file) => evidenceIdSet.has(file.id)),
-    expired: isExpired(sharePackage),
+    notes,
+    activities,
+    status,
+    accessible,
   };
 }
 
@@ -148,4 +209,21 @@ export function listSharePackages(): SharePackage[] {
 
 export function replaceSharePackages(packages: SharePackage[]): void {
   saveSharePackages(packages.map(normalizeSharePackage));
+}
+
+export function settingsChanged(
+  previous: SharePackageSettings | null,
+  next: SharePackageSettings
+): boolean {
+  if (!previous) return false;
+  return (
+    previous.expiration !== next.expiration ||
+    previous.accessMode !== next.accessMode ||
+    previous.includedSections.timeline !== next.includedSections.timeline ||
+    previous.includedSections.evidenceList !==
+      next.includedSections.evidenceList ||
+    previous.includedSections.notes !== next.includedSections.notes ||
+    previous.includedSections.activitySummary !==
+      next.includedSections.activitySummary
+  );
 }

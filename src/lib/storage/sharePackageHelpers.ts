@@ -6,6 +6,10 @@ export {
   getShareUrl,
   incrementAccessCount,
   isExpired,
+  isSharePackageAccessible,
   listSharePackages,
   replaceSharePackages,
+  revokeSharePackage,
+  settingsChanged,
+  verifyPasscodeHash,
 } from "@/lib/share/shareService";

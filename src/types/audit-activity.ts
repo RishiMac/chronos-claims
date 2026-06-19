@@ -1,7 +1,12 @@
 export type AuditActivityAction =
   | "created_share_package"
+  | "regenerated_share_package"
   | "opened_share_package"
   | "copied_share_link"
+  | "failed_passcode_attempt"
+  | "successful_passcode_attempt"
+  | "revoked_share_package"
+  | "changed_share_settings"
   | "opened_timeline_event"
   | "copied_event_summary"
   | "saved_note"

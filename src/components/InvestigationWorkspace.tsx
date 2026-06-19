@@ -63,7 +63,10 @@ import {
   createSharePackage,
   getLatestSharePackageForClaim,
   listSharePackages,
+  revokeSharePackage,
+  settingsChanged,
 } from "@/lib/share/shareService";
+import type { SharePackageGenerateInput } from "@/components/SharePackageModal";
 import {
   fromInvestigationNote,
   toInvestigationNote,
@@ -1108,22 +1111,68 @@ export function InvestigationWorkspace() {
     setShareModalOpen(true);
   }, [activeClaimId, setSharePackages]);
 
-  const handleGenerateSharePackage = useCallback(() => {
-    const sharePackage = createSharePackage({
-      claimId: activeClaimId,
+  const handleGenerateSharePackage = useCallback(
+    async (input: SharePackageGenerateInput) => {
+      const previous = getLatestSharePackageForClaim(activeClaimId);
+      const sharePackage = await createSharePackage({
+        claimId: activeClaimId,
+        evidenceFiles,
+        timelineEvents,
+        expiration: input.expiration,
+        accessMode: input.accessMode,
+        includedSections: input.includedSections,
+        passcode: input.passcode,
+      });
+      setSharePackages(listSharePackages());
+      setModalSharePackage(sharePackage);
+
+      if (previous) {
+        logActivity(
+          "regenerated_share_package",
+          `Regenerated share package ${sharePackage.shareToken}`
+        );
+        if (
+          settingsChanged(
+            {
+              expiration: previous.expiration,
+              accessMode: previous.accessMode,
+              includedSections: previous.includedSections,
+            },
+            input
+          )
+        ) {
+          logActivity("changed_share_settings", "Changed share package settings");
+        }
+      } else {
+        logActivity(
+          "created_share_package",
+          `Created share package ${sharePackage.shareToken}`
+        );
+      }
+    },
+    [
+      activeClaimId,
       evidenceFiles,
       timelineEvents,
-    });
+      setSharePackages,
+      logActivity,
+    ]
+  );
+
+  const handleRevokeSharePackage = useCallback(() => {
+    const current = modalSharePackage ?? latestSharePackage;
+    if (!current) return;
+    const revoked = revokeSharePackage(current.shareToken);
+    if (!revoked) return;
     setSharePackages(listSharePackages());
-    setModalSharePackage(sharePackage);
+    setModalSharePackage(revoked);
     logActivity(
-      "created_share_package",
-      `Generated share package ${sharePackage.shareToken}`
+      "revoked_share_package",
+      `Revoked share package ${current.shareToken}`
     );
   }, [
-    activeClaimId,
-    evidenceFiles,
-    timelineEvents,
+    modalSharePackage,
+    latestSharePackage,
     setSharePackages,
     logActivity,
   ]);
@@ -1239,6 +1288,7 @@ export function InvestigationWorkspace() {
         onGenerate={handleGenerateSharePackage}
         onCopyLink={handleCopyShareLink}
         onOpenPackage={handleOpenSharePackage}
+        onRevoke={handleRevokeSharePackage}
       />
     </div>
   );

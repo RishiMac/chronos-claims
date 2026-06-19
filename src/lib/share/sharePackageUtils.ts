@@ -1,8 +1,15 @@
 import {
+  DEFAULT_SHARE_INCLUDED_SECTIONS,
+  DEFAULT_SHARE_SETTINGS,
+} from "@/types/share-package";
+import type {
+  SharePackage,
+  SharePackageStatus,
+} from "@/types/share-package";
+import {
   SHARE_CREATED_BY_PLACEHOLDER,
-  SHARE_EXPIRATION_DAYS,
 } from "@/lib/share/constants";
-import type { SharePackage } from "@/types/share-package";
+import { computeExpiresAt } from "@/lib/share/passcodeUtils";
 
 export function generateShareToken(): string {
   return `sp_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -33,13 +40,6 @@ function generateShareTokenFromLegacy(
   return `sp_${Math.abs(hash).toString(36)}${Date.now().toString(36).slice(-4)}`;
 }
 
-function defaultExpirationFrom(createdAt?: string): string {
-  const created = createdAt ? new Date(createdAt) : new Date();
-  const expires = new Date(created);
-  expires.setDate(expires.getDate() + SHARE_EXPIRATION_DAYS);
-  return expires.toISOString();
-}
-
 export function normalizeSharePackage(
   pkg: Partial<SharePackage> & Pick<SharePackage, "id" | "claimId">
 ): SharePackage {
@@ -49,21 +49,47 @@ export function normalizeSharePackage(
   const url = pkg.url?.includes("/share/")
     ? pkg.url
     : getShareUrl(shareToken);
+  const expiration = pkg.expiration ?? "7d";
+  const createdAt = pkg.createdAt ?? new Date().toISOString();
 
   return {
     id: pkg.id,
     claimId: pkg.claimId,
-    createdAt: pkg.createdAt ?? new Date().toISOString(),
-    expiresAt: pkg.expiresAt ?? defaultExpirationFrom(pkg.createdAt),
+    createdAt,
+    expiresAt: pkg.expiresAt ?? computeExpiresAt(expiration, new Date(createdAt)),
     shareToken,
     url,
     includedEvidenceIds: pkg.includedEvidenceIds ?? [],
     includedEventIds: pkg.includedEventIds ?? [],
     createdBy: pkg.createdBy ?? SHARE_CREATED_BY_PLACEHOLDER,
     accessCount: pkg.accessCount ?? 0,
+    expiration,
+    accessMode: pkg.accessMode ?? "anyone_with_link",
+    includedSections: pkg.includedSections ?? DEFAULT_SHARE_INCLUDED_SECTIONS,
+    passcodeHash: pkg.passcodeHash,
+    revoked: pkg.revoked ?? false,
+    revokedAt: pkg.revokedAt ?? null,
   };
 }
 
 export function isExpired(sharePackage: SharePackage, now = new Date()): boolean {
+  if (sharePackage.revoked) return false;
+  if (sharePackage.expiration === "never") return false;
   return new Date(sharePackage.expiresAt).getTime() <= now.getTime();
+}
+
+export function getSharePackageStatus(
+  sharePackage: SharePackage,
+  now = new Date()
+): SharePackageStatus {
+  if (sharePackage.revoked) return "revoked";
+  if (isExpired(sharePackage, now)) return "expired";
+  return "active";
+}
+
+export function isSharePackageAccessible(
+  sharePackage: SharePackage,
+  now = new Date()
+): boolean {
+  return getSharePackageStatus(sharePackage, now) === "active";
 }
