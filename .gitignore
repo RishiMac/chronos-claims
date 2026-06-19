@@ -2,11 +2,29 @@ node_modules/
 .next/
 out/
 dist/
+build/
+
+# Environment (keep .env.example committed)
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env.*.local
+
+# Vercel / tooling
+.vercel/
+.turbo/
+
+# OS & logs
 .DS_Store
+Thumbs.db
+*.pem
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Local upload scratch (sample assets under public/ remain committed)
+uploads/
+tmp/
