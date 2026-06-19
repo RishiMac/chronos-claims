@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 
-import { EventDetailsCard } from "@/components/EventDetailsCard";
 import { EvidenceSidebar } from "@/components/EvidenceSidebar";
 import { EvidenceViewerTabs } from "@/components/EvidenceViewerTabs";
 import { Header } from "@/components/Header";
+import { RightInvestigationPanel } from "@/components/RightInvestigationPanel";
 import { SharePackageModal } from "@/components/SharePackageModal";
-import { TimelinePanel } from "@/components/TimelinePanel";
 import { mockClaim } from "@/data/mockClaim";
 
 export function InvestigationWorkspace() {
@@ -35,17 +34,17 @@ export function InvestigationWorkspace() {
   );
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-slate-100/60">
+    <div className="flex h-dvh flex-col overflow-hidden bg-slate-100/60">
       <Header claim={mockClaim} onShareClick={() => setShareModalOpen(true)} />
 
-      <div className="grid min-h-0 flex-1 xl:grid-cols-[18rem_minmax(0,1fr)_24rem]">
+      <div className="grid min-h-0 flex-1 overflow-hidden xl:grid-cols-[18rem_minmax(0,1fr)_24rem]">
         <EvidenceSidebar
           files={mockClaim.evidenceFiles}
           selectedEvidenceId={selectedEvidenceId}
           onSelectEvidence={setSelectedEvidenceId}
         />
 
-        <main className="min-h-0 overflow-y-auto border-x border-border p-4 lg:p-5">
+        <main className="min-h-0 overflow-y-auto border-x border-border">
           <EvidenceViewerTabs
             selectedEvent={selectedEvent}
             speedData={mockClaim.speedData}
@@ -54,20 +53,14 @@ export function InvestigationWorkspace() {
           />
         </main>
 
-        <aside className="flex min-h-0 flex-col overflow-hidden border-t border-border bg-white xl:sticky xl:top-0 xl:h-full xl:self-start xl:border-t-0">
-          <TimelinePanel
-            events={mockClaim.timelineEvents}
-            evidenceFiles={mockClaim.evidenceFiles}
-            selectedEventId={selectedEventId}
-            onSelectEvent={setSelectedEventId}
-          />
-          <div className="shrink-0 overflow-y-auto border-t border-border p-3">
-            <EventDetailsCard
-              event={selectedEvent}
-              linkedEvidence={linkedEvidence}
-            />
-          </div>
-        </aside>
+        <RightInvestigationPanel
+          events={mockClaim.timelineEvents}
+          evidenceFiles={mockClaim.evidenceFiles}
+          selectedEventId={selectedEventId}
+          selectedEvent={selectedEvent}
+          linkedEvidence={linkedEvidence}
+          onSelectEvent={setSelectedEventId}
+        />
       </div>
 
       <SharePackageModal

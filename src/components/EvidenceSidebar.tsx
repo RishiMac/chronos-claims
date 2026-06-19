@@ -43,7 +43,7 @@ export function EvidenceSidebar({
   const selectedFile = files.find((file) => file.id === selectedEvidenceId);
 
   return (
-    <aside className="h-full min-h-0 overflow-y-auto border-b border-border bg-slate-50/80 xl:border-b-0 xl:border-r">
+    <aside className="h-full min-h-0 overflow-y-auto border-b border-border bg-slate-50/80 pb-10 xl:border-b-0 xl:border-r">
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <h2 className="text-[13px] font-medium text-slate-900">

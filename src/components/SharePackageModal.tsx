@@ -42,10 +42,15 @@ export function SharePackageModal({
             <Check className="size-5 text-emerald-600" />
             Shareable package generated
           </DialogTitle>
-          <DialogDescription>
-            This package contains the synchronized timeline, evidence references,
-            video view, GPS route, and supporting documents. It is intended to
-            support human review — not to determine outcomes.
+          <DialogDescription className="space-y-2">
+            <span>
+              This package contains the synchronized timeline, evidence references,
+              video view, GPS route, and supporting documents. It is intended to
+              support human review — not to determine outcomes.
+            </span>
+            <span className="block text-[12px] text-muted-foreground">
+              All source files remain linked to their original evidence references.
+            </span>
           </DialogDescription>
         </DialogHeader>
 

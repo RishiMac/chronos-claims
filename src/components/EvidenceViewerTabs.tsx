@@ -32,26 +32,28 @@ export function EvidenceViewerTabs({
   const [activeTab, setActiveTab] = useState<ViewerTab>("video");
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-              activeTab === tab.id
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <div className="flex min-h-full flex-col">
+      <div className="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-100/95 px-4 py-3 backdrop-blur-sm lg:px-5">
+        <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/80 p-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex-1 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                activeTab === tab.id
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="p-4 lg:p-5">
         {activeTab === "video" && (
           <VideoViewer
             timestamp={selectedEvent.timestamp}
