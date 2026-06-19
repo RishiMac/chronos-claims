@@ -19,7 +19,7 @@ import {
   serializeTelematicsMap,
   workspaceFromStored,
 } from "@/lib/storage/claimSerializer";
-import type { AuditActivity, AuditActivityType } from "@/types/audit-activity";
+import type { AuditActivity, AuditActivityAction } from "@/types/audit-activity";
 import type { StoredInvestigationNote } from "@/types/investigation-note";
 import type { SharePackage } from "@/types/share-package";
 import type { StoredClaim } from "@/types/stored-claim";
@@ -182,26 +182,8 @@ export function buildWorkspacePersistPayload(input: {
   };
 }
 
-export function createActivityEntry(
-  claimId: string,
-  message: string,
-  type: AuditActivityType = "general"
-): AuditActivity {
-  return {
-    id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    claimId,
-    timestamp: new Date().toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    }),
-    message,
-    type,
-  };
-}
+export { createActivityEntry } from "@/lib/audit/activityUtils";
 
-// Re-export for convenience in workspace
 export {
   getActivities,
   getNotes,

@@ -1,10 +1,12 @@
-export type AuditActivityType =
-  | "viewed_event"
-  | "uploaded_csv"
-  | "loaded_sample_evidence"
-  | "generated_share_package"
+export type AuditActivityAction =
+  | "created_share_package"
+  | "opened_share_package"
+  | "copied_share_link"
+  | "opened_timeline_event"
   | "copied_event_summary"
   | "saved_note"
+  | "uploaded_csv"
+  | "loaded_sample_evidence"
   | "created_claim"
   | "deleted_claim"
   | "renamed_claim"
@@ -12,16 +14,34 @@ export type AuditActivityType =
   | "switched_claim"
   | "general";
 
+/** @deprecated Use AuditActivityAction */
+export type AuditActivityType = AuditActivityAction;
+
 export interface AuditActivity {
   id: string;
   claimId: string;
   timestamp: string;
-  message: string;
-  type: AuditActivityType;
+  action: AuditActivityAction;
+  details: string;
 }
 
 /** @deprecated Use AuditActivity — kept for existing UI components */
-export type SessionActivityEntry = Omit<AuditActivity, "claimId" | "type"> & {
+export type SessionActivityEntry = {
+  id: string;
+  timestamp: string;
+  message: string;
   claimId?: string;
-  type?: AuditActivityType;
+  action?: AuditActivityAction;
 };
+
+export function auditActivityToSessionEntry(
+  activity: AuditActivity
+): SessionActivityEntry {
+  return {
+    id: activity.id,
+    timestamp: activity.timestamp,
+    message: activity.details,
+    claimId: activity.claimId,
+    action: activity.action,
+  };
+}

@@ -1,10 +1,11 @@
 import { sampleClaims } from "@/data/sampleClaims";
 import { normalizeClaimTitle } from "@/lib/claimDisplay";
 import { buildInitialNotesFromSampleClaims } from "@/lib/storage/claimOperations";
-import type { AuditActivity } from "@/types/audit-activity";
+import type { AuditActivity, AuditActivityAction } from "@/types/audit-activity";
 import type { StoredInvestigationNote } from "@/types/investigation-note";
 import type { SharePackage } from "@/types/share-package";
 import type { StoredClaim } from "@/types/stored-claim";
+import { normalizeSharePackage } from "@/lib/share/sharePackageUtils";
 
 const KEYS = {
   claims: "chronos_claims_v1",
@@ -97,8 +98,31 @@ export function saveNotes(notes: StoredInvestigationNote[]): void {
 }
 
 export function getActivities(): AuditActivity[] {
-  const stored = readJson<AuditActivity[]>(KEYS.activity);
-  return stored && Array.isArray(stored) ? stored : [];
+  const stored = readJson<LegacyAuditActivity[]>(KEYS.activity);
+  if (!stored || !Array.isArray(stored)) return [];
+  return stored.map(normalizeAuditActivity);
+}
+
+interface LegacyAuditActivity {
+  id: string;
+  claimId: string;
+  timestamp: string;
+  action?: AuditActivityAction;
+  details?: string;
+  message?: string;
+  type?: AuditActivityAction;
+}
+
+function normalizeAuditActivity(entry: LegacyAuditActivity): AuditActivity {
+  const action = entry.action ?? entry.type ?? "general";
+  const details = entry.details ?? entry.message ?? "";
+  return {
+    id: entry.id,
+    claimId: entry.claimId,
+    timestamp: entry.timestamp,
+    action,
+    details,
+  };
 }
 
 export function saveActivities(activities: AuditActivity[]): void {
@@ -106,8 +130,14 @@ export function saveActivities(activities: AuditActivity[]): void {
 }
 
 export function getSharePackages(): SharePackage[] {
-  const stored = readJson<SharePackage[]>(KEYS.sharePackages);
-  return stored && Array.isArray(stored) ? stored : [];
+  const stored = readJson<Partial<SharePackage>[]>(KEYS.sharePackages);
+  if (!stored || !Array.isArray(stored)) return [];
+  return stored
+    .filter(
+      (pkg): pkg is Partial<SharePackage> & Pick<SharePackage, "id" | "claimId"> =>
+        Boolean(pkg?.id && pkg?.claimId)
+    )
+    .map(normalizeSharePackage);
 }
 
 export function saveSharePackages(packages: SharePackage[]): void {

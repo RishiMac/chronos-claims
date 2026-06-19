@@ -1,7 +1,7 @@
 export type { TelemetryRecord, TelemetryMetrics, TelematicsFormat } from "./telemetry";
 export type { User } from "./user";
 export type { SharePackage } from "./share-package";
-export type { AuditActivity, AuditActivityType, SessionActivityEntry } from "./audit-activity";
+export type { AuditActivity, AuditActivityAction, AuditActivityType, SessionActivityEntry } from "./audit-activity";
 export type {
   InvestigationNote,
   StoredInvestigationNote,

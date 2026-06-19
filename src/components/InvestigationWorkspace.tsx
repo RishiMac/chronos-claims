@@ -10,11 +10,7 @@ import { SharePackageModal } from "@/components/SharePackageModal";
 import { DEMO_VIDEO_SRC } from "@/components/VideoViewer";
 import { getDefaultClaim } from "@/data/sampleClaims";
 import { formatClaimDisplayTitle } from "@/lib/claimDisplay";
-import {
-  createActivityEntry,
-  getClaimFromCatalog,
-  useChronosPersistence,
-} from "@/hooks/useChronosPersistence";
+import { createActivityEntry } from "@/lib/audit/activityUtils";
 import { detectTelematicsEvents } from "@/lib/detectTelematicsEvents";
 import {
   createPreviewObjectUrl,
@@ -33,6 +29,10 @@ import {
   findActiveEventForPlayback,
 } from "@/lib/eventUtils";
 import { useInvestigationKeyboard } from "@/hooks/useInvestigationKeyboard";
+import {
+  getClaimFromCatalog,
+  useChronosPersistence,
+} from "@/hooks/useChronosPersistence";
 import {
   parseTelematicsCsv,
   TelematicsParseError,
@@ -62,12 +62,16 @@ import { resetStorage } from "@/lib/storage/chronosStorage";
 import {
   createSharePackage,
   getLatestSharePackageForClaim,
-} from "@/lib/storage/sharePackageHelpers";
+  listSharePackages,
+} from "@/lib/share/shareService";
 import {
   fromInvestigationNote,
   toInvestigationNote,
 } from "@/types/investigation-note";
-import type { AuditActivityType } from "@/types/audit-activity";
+import {
+  auditActivityToSessionEntry,
+  type AuditActivityAction,
+} from "@/types/audit-activity";
 import type { SharePackage } from "@/types/share-package";
 import type { StoredClaim } from "@/types/stored-claim";
 import {
@@ -177,12 +181,12 @@ export function InvestigationWorkspace() {
     () =>
       allActivities
         .filter((entry) => entry.claimId === activeClaimId)
-        .map(({ id, timestamp, message }) => ({ id, timestamp, message })),
+        .map(auditActivityToSessionEntry),
     [allActivities, activeClaimId]
   );
 
   const latestSharePackage = useMemo(
-    () => getLatestSharePackageForClaim(sharePackages, activeClaimId),
+    () => getLatestSharePackageForClaim(activeClaimId),
     [sharePackages, activeClaimId]
   );
 
@@ -213,9 +217,9 @@ export function InvestigationWorkspace() {
   }, []);
 
   const logActivity = useCallback(
-    (message: string, type: AuditActivityType = "general") => {
+    (action: AuditActivityAction, details: string) => {
       if (!activeClaimId) return;
-      const entry = createActivityEntry(activeClaimId, message, type);
+      const entry = createActivityEntry(activeClaimId, action, details);
       setAllActivities((previous) => [entry, ...previous]);
     },
     [activeClaimId, setAllActivities]
@@ -455,7 +459,7 @@ export function InvestigationWorkspace() {
       setSelectedEventId(eventId);
       if (event) {
         setCurrentVideoTime(event.videoOffsetSeconds);
-        logActivity(`Viewed event: ${event.title}`, "viewed_event");
+        logActivity("opened_timeline_event", `Viewed event: ${event.title}`);
       }
     },
     [timelineEvents, logActivity]
@@ -467,9 +471,9 @@ export function InvestigationWorkspace() {
       const file = evidenceFiles.find((item) => item.id === evidenceId);
       if (file?.fileType === "video") {
         setActiveVideoEvidenceId(evidenceId);
-        logActivity(`Selected video evidence: ${file.name}`);
+        logActivity("general", `Selected video evidence: ${file.name}`);
       } else if (file) {
-        logActivity(`Selected evidence file: ${file.name}`);
+        logActivity("general", `Selected evidence file: ${file.name}`);
       }
     },
     [evidenceFiles, logActivity]
@@ -597,7 +601,7 @@ export function InvestigationWorkspace() {
           setCurrentVideoTime(detectedEvents[0].videoOffsetSeconds);
         }
 
-        logActivity(`Processed telematics CSV: ${fileName}`, "uploaded_csv");
+        logActivity("uploaded_csv", `Processed telematics CSV: ${fileName}`);
       } catch (error) {
         const message =
           error instanceof TelematicsParseError
@@ -625,7 +629,7 @@ export function InvestigationWorkspace() {
       const stored = storedClaims.find((item) => item.claim.id === claimId);
       if (!stored) return;
       applyClaimBaseline(stored);
-      logActivity(`Switched to claim ${claimId}`, "switched_claim");
+      logActivity("switched_claim", `Switched to claim ${claimId}`);
     },
     [storedClaims, applyClaimBaseline, logActivity]
   );
@@ -634,7 +638,7 @@ export function InvestigationWorkspace() {
     const stored = createEmptyClaim();
     setStoredClaims((current) => [...current, stored]);
     applyClaimBaseline(stored);
-    logActivity("Created claim", "created_claim");
+    logActivity("created_claim", "Created claim");
   }, [setStoredClaims, applyClaimBaseline, logActivity]);
 
   const handleRenameClaim = useCallback(() => {
@@ -647,7 +651,7 @@ export function InvestigationWorkspace() {
           : item
       )
     );
-    logActivity(`Renamed claim to "${nextTitle.trim()}"`, "renamed_claim");
+    logActivity("renamed_claim", `Renamed claim to "${nextTitle.trim()}"`);
   }, [activeClaim.title, activeClaimId, setStoredClaims, logActivity]);
 
   const handleDuplicateClaim = useCallback(() => {
@@ -657,7 +661,7 @@ export function InvestigationWorkspace() {
     setStoredClaims((current) => [...current, stored]);
     setAllNotes((current) => [...current, ...copiedNotes]);
     applyClaimBaseline(stored);
-    logActivity(`Duplicated claim ${activeClaimId}`, "duplicated_claim");
+    logActivity("duplicated_claim", `Duplicated claim ${activeClaimId}`);
   }, [
     storedClaims,
     activeClaimId,
@@ -689,7 +693,7 @@ export function InvestigationWorkspace() {
       current.filter((entry) => entry.claimId !== activeClaimId)
     );
     applyClaimBaseline(remaining[0]);
-    logActivity(`Deleted claim ${activeClaimId}`, "deleted_claim");
+    logActivity("deleted_claim", `Deleted claim ${activeClaimId}`);
   }, [
     storedClaims,
     activeClaimId,
@@ -716,7 +720,7 @@ export function InvestigationWorkspace() {
     setSharePackages([]);
     setSelectedClaimId(defaults[0].claim.id);
     applyClaimBaseline(defaults[0]);
-    logActivity("Reset demo data", "general");
+    logActivity("general", "Reset demo data");
   }, [
     setStoredClaims,
     setAllNotes,
@@ -734,7 +738,7 @@ export function InvestigationWorkspace() {
     setAllNotes(sampleNotes);
     setSelectedClaimId(defaults[0].claim.id);
     applyClaimBaseline(defaults[0]);
-    logActivity("Loaded sample claims", "general");
+    logActivity("general", "Loaded sample claims");
   }, [setStoredClaims, setAllNotes, setSelectedClaimId, applyClaimBaseline, logActivity]);
 
   const processUploadedFile = useCallback(
@@ -768,7 +772,7 @@ export function InvestigationWorkspace() {
 
       setEvidenceFiles((current) => [...current, evidence]);
       setSelectedEvidenceId(evidenceId);
-      logActivity(`Uploaded evidence file: ${file.name}`);
+      logActivity("general", `Uploaded evidence file: ${file.name}`);
 
       if (fileType === "video") {
         const objectUrl = createPreviewObjectUrl(file);
@@ -935,7 +939,10 @@ export function InvestigationWorkspace() {
         })
       );
       setSampleEvidenceLoaded(true);
-      logActivity(`Loaded sample evidence for ${activeClaim.id}`, "loaded_sample_evidence");
+      logActivity(
+        "loaded_sample_evidence",
+        `Loaded sample evidence for ${activeClaim.id}`
+      );
     } catch (error) {
       const message =
         error instanceof Error
@@ -980,7 +987,7 @@ export function InvestigationWorkspace() {
       activeClaimId
     );
     setAllNotes((previous) => [note, ...previous]);
-    logActivity("Saved investigation note", "saved_note");
+    logActivity("saved_note", "Saved investigation note");
     setNotesDraft("");
   }, [notesDraft, activeClaimId, setAllNotes, logActivity]);
 
@@ -1000,7 +1007,7 @@ export function InvestigationWorkspace() {
       timelineEvents,
     });
     downloadSessionExport(session);
-    logActivity("Exported investigation session");
+    logActivity("general", "Exported investigation session");
   }, [
     selectedEventId,
     selectedEvidenceId,
@@ -1059,8 +1066,8 @@ export function InvestigationWorkspace() {
             id: entry.id,
             claimId: activeClaimId,
             timestamp: entry.timestamp,
-            message: entry.message,
-            type: entry.type ?? ("general" as const),
+            action: entry.action ?? "general",
+            details: entry.message,
           }));
           return [...imported, ...others];
         });
@@ -1070,7 +1077,7 @@ export function InvestigationWorkspace() {
         setImportMessage(
           "Session imported. Re-upload video, image, and PDF files to restore previews."
         );
-        logActivity("Imported investigation session");
+        logActivity("general", "Imported investigation session");
       } catch (error) {
         const message =
           error instanceof Error
@@ -1090,33 +1097,47 @@ export function InvestigationWorkspace() {
         map: "Map",
         notes: "Notes",
       };
-      logActivity(`Opened ${labels[tab]} tab`);
+      logActivity("general", `Opened ${labels[tab]} tab`);
     },
     [logActivity]
   );
 
   const handleShareOpen = useCallback(() => {
+    setSharePackages(listSharePackages());
+    setModalSharePackage(getLatestSharePackageForClaim(activeClaimId));
+    setShareModalOpen(true);
+  }, [activeClaimId, setSharePackages]);
+
+  const handleGenerateSharePackage = useCallback(() => {
     const sharePackage = createSharePackage({
       claimId: activeClaimId,
-      shareUrl: activeClaim.shareUrl,
       evidenceFiles,
       timelineEvents,
     });
-    setSharePackages((previous) => [...previous, sharePackage]);
+    setSharePackages(listSharePackages());
     setModalSharePackage(sharePackage);
-    setShareModalOpen(true);
-    logActivity("Generated share package", "generated_share_package");
+    logActivity(
+      "created_share_package",
+      `Generated share package ${sharePackage.shareToken}`
+    );
   }, [
     activeClaimId,
-    activeClaim.shareUrl,
     evidenceFiles,
     timelineEvents,
     setSharePackages,
     logActivity,
   ]);
 
+  const handleCopyShareLink = useCallback(() => {
+    logActivity("copied_share_link", "Copied share link");
+  }, [logActivity]);
+
+  const handleOpenSharePackage = useCallback(() => {
+    logActivity("opened_share_package", "Opened share package in new tab");
+  }, [logActivity]);
+
   const handleCopySummary = useCallback(() => {
-    logActivity("Copied event summary", "copied_event_summary");
+    logActivity("copied_event_summary", "Copied event summary");
   }, [logActivity]);
 
   return (
@@ -1213,9 +1234,11 @@ export function InvestigationWorkspace() {
       <SharePackageModal
         open={shareModalOpen}
         onOpenChange={setShareModalOpen}
-        shareUrl={activeClaim.shareUrl}
         claimId={activeClaim.id}
         sharePackage={modalSharePackage ?? latestSharePackage}
+        onGenerate={handleGenerateSharePackage}
+        onCopyLink={handleCopyShareLink}
+        onOpenPackage={handleOpenSharePackage}
       />
     </div>
   );
