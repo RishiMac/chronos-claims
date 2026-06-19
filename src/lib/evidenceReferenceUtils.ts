@@ -1,7 +1,6 @@
 import type { ConfidenceLevel, EvidenceFile, TimelineEvent } from "@/types/claim";
 import type {
   EvidenceReference,
-  EvidenceReferenceType,
 } from "@/types/evidence-reference";
 
 export function createReferenceId(prefix: string, parts: string[]): string {

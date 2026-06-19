@@ -144,18 +144,20 @@ export function generateClaimSummary(input: {
 }
 
 async function resolveEvidenceText(file: EvidenceFile): Promise<string | null> {
-  if (file.metadata.textPreview?.trim()) {
-    return file.metadata.textPreview;
+  if (file.metadata.storedTextContent?.trim()) {
+    return file.metadata.storedTextContent;
   }
 
-  if (!file.metadata.publicUrl) return null;
+  if (!file.metadata.publicUrl) {
+    return file.metadata.textPreview?.trim() ?? null;
+  }
 
   try {
     const response = await fetch(file.metadata.publicUrl);
-    if (!response.ok) return null;
+    if (!response.ok) return file.metadata.textPreview?.trim() ?? null;
     return response.text();
   } catch {
-    return null;
+    return file.metadata.textPreview?.trim() ?? null;
   }
 }
 

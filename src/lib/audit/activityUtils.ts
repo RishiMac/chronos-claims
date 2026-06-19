@@ -22,6 +22,8 @@ export function createActivityEntry(
   };
 }
 
+// Intentional direct write path for pages outside React state (e.g. share unlock).
+// Uses chronosStorage saveActivities/getActivities — not raw localStorage.
 export function appendActivity(entry: AuditActivity): void {
   saveActivities([entry, ...getActivities()]);
 }

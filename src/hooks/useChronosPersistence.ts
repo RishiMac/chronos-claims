@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  BOOTSTRAP_SELECTED_CLAIM_ID,
+  BOOTSTRAP_STORED_CLAIMS,
+} from "@/lib/storage/bootstrapState";
+import {
   getActivities,
   getNotes,
   getSelectedClaimId,
@@ -19,7 +23,7 @@ import {
   serializeTelematicsMap,
   workspaceFromStored,
 } from "@/lib/storage/claimSerializer";
-import type { AuditActivity, AuditActivityAction } from "@/types/audit-activity";
+import type { AuditActivity } from "@/types/audit-activity";
 import type { StoredInvestigationNote } from "@/types/investigation-note";
 import type { SharePackage } from "@/types/share-package";
 import type { StoredClaim } from "@/types/stored-claim";
@@ -55,21 +59,26 @@ export function hydrateAppState(): HydratedAppState {
 
 export function useChronosPersistence() {
   const [hydrated, setHydrated] = useState(false);
-  const [storedClaims, setStoredClaims] = useState<StoredClaim[]>([]);
-  const [selectedClaimId, setSelectedClaimId] = useState("");
+  const [storedClaims, setStoredClaims] =
+    useState<StoredClaim[]>(BOOTSTRAP_STORED_CLAIMS);
+  const [selectedClaimId, setSelectedClaimId] = useState(
+    BOOTSTRAP_SELECTED_CLAIM_ID
+  );
   const [allNotes, setAllNotes] = useState<StoredInvestigationNote[]>([]);
   const [allActivities, setAllActivities] = useState<AuditActivity[]>([]);
   const [sharePackages, setSharePackages] = useState<SharePackage[]>([]);
   const skipNextPersist = useRef(true);
 
   useEffect(() => {
-    const initial = hydrateAppState();
-    setStoredClaims(initial.storedClaims);
-    setSelectedClaimId(initial.selectedClaimId);
-    setAllNotes(initial.allNotes);
-    setAllActivities(initial.allActivities);
-    setSharePackages(initial.sharePackages);
-    setHydrated(true);
+    queueMicrotask(() => {
+      const initial = hydrateAppState();
+      setStoredClaims(initial.storedClaims);
+      setSelectedClaimId(initial.selectedClaimId);
+      setAllNotes(initial.allNotes);
+      setAllActivities(initial.allActivities);
+      setSharePackages(initial.sharePackages);
+      setHydrated(true);
+    });
   }, []);
 
   const persistAll = useCallback(

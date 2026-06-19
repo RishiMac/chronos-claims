@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Flag } from "lucide-react";
+import { Bookmark, Flag, X } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import {
   FLAG_TYPE_LABELS,
   REVIEW_STATUS_LABELS,
   type EventComment,
+  type EventFlag,
   type EventFlagType,
   type ReviewStatus,
 } from "@/types/collaboration";
@@ -20,10 +21,13 @@ import type { TimelineEvent } from "@/types/claim";
 interface EventCollaborationPanelProps {
   event: TimelineEvent;
   comments: EventComment[];
+  eventFlags: EventFlag[];
   onReviewStatusChange: (status: ReviewStatus) => void;
   onAssign: (assigneeName: string) => void;
+  onUnassign: () => void;
   onToggleBookmark: () => void;
   onAddFlag: (flagType: EventFlagType) => void;
+  onRemoveFlag: (flagId: string) => void;
   onAddComment: (body: string) => void;
 }
 
@@ -45,14 +49,18 @@ const flagOptions: EventFlagType[] = [
 export function EventCollaborationPanel({
   event,
   comments,
+  eventFlags,
   onReviewStatusChange,
   onAssign,
+  onUnassign,
   onToggleBookmark,
   onAddFlag,
+  onRemoveFlag,
   onAddComment,
 }: EventCollaborationPanelProps) {
   const [commentDraft, setCommentDraft] = useState("");
   const reviewStatus = event.reviewStatus ?? "unreviewed";
+  const activeFlagTypes = new Set(eventFlags.map((flag) => flag.flagType));
 
   const handleSaveComment = () => {
     const trimmed = commentDraft.trim();
@@ -88,8 +96,11 @@ export function EventCollaborationPanel({
             <select
               value={event.assignedTo ?? ""}
               onChange={(changeEvent) => {
-                if (changeEvent.target.value) {
-                  onAssign(changeEvent.target.value);
+                const value = changeEvent.target.value;
+                if (value) {
+                  onAssign(value);
+                } else {
+                  onUnassign();
                 }
               }}
               className="h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-700 outline-none focus:border-slate-300"
@@ -135,24 +146,37 @@ export function EventCollaborationPanel({
             >
               <option value="">Select flag…</option>
               {flagOptions.map((flagType) => (
-                <option key={flagType} value={flagType}>
+                <option
+                  key={flagType}
+                  value={flagType}
+                  disabled={activeFlagTypes.has(flagType)}
+                >
                   {FLAG_TYPE_LABELS[flagType]}
+                  {activeFlagTypes.has(flagType) ? " (added)" : ""}
                 </option>
               ))}
             </select>
           </label>
         </div>
 
-        {(event.flags?.length ?? 0) > 0 && (
+        {eventFlags.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-0.5">
-            {event.flags?.map((flagType, index) => (
+            {eventFlags.map((flag) => (
               <Badge
-                key={`${flagType}-${index}`}
+                key={flag.id}
                 variant="outline"
-                className="h-4 gap-0.5 px-1 text-[9px] font-normal text-amber-700"
+                className="h-4 gap-0.5 pl-1 pr-0.5 text-[9px] font-normal text-amber-700"
               >
                 <Flag className="size-2.5" />
-                {FLAG_TYPE_LABELS[flagType]}
+                {FLAG_TYPE_LABELS[flag.flagType]}
+                <button
+                  type="button"
+                  onClick={() => onRemoveFlag(flag.id)}
+                  className="ml-0.5 rounded-sm p-0.5 hover:bg-amber-100"
+                  aria-label={`Remove ${FLAG_TYPE_LABELS[flag.flagType]} flag`}
+                >
+                  <X className="size-2.5" />
+                </button>
               </Badge>
             ))}
           </div>

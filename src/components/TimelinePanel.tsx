@@ -265,6 +265,7 @@ export function TimelinePanel({
                           keyboardEvent.key === " "
                         ) {
                           keyboardEvent.preventDefault();
+                          keyboardEvent.stopPropagation();
                           onSelectEvent(event.id);
                         }
                       }}

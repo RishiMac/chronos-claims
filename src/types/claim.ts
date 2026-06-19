@@ -45,6 +45,8 @@ export interface EvidenceMetadata {
   imageHeight?: number;
   pdfPageCount?: number;
   textPreview?: string;
+  /** Full uploaded text content (persisted up to size cap) */
+  storedTextContent?: string;
   warnings?: string[];
   publicUrl?: string;
 }

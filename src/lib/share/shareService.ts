@@ -8,13 +8,11 @@ import { SHARE_CREATED_BY_PLACEHOLDER } from "@/lib/share/constants";
 import {
   hashPasscode,
   computeExpiresAt,
-  verifyPasscodeHash,
 } from "@/lib/share/passcodeUtils";
 import {
   generateShareToken,
   getSharePackageStatus,
   getShareUrl,
-  isExpired,
   isSharePackageAccessible,
   normalizeSharePackage,
 } from "@/lib/share/sharePackageUtils";

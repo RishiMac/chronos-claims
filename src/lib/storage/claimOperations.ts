@@ -1,6 +1,9 @@
 import { sampleClaims } from "@/data/sampleClaims";
 import type { Claim } from "@/types/claim";
 import type { StoredInvestigationNote } from "@/types/investigation-note";
+import { createEmptyCollaboration } from "@/types/collaboration";
+import { createCollaborationId } from "@/lib/collaboration/collaborationUtils";
+import type { ClaimEventCollaboration } from "@/types/collaboration";
 import type { StoredClaim } from "@/types/stored-claim";
 
 let claimCounter = 0;
@@ -59,6 +62,69 @@ export function createEmptyClaim(title?: string): StoredClaim {
   };
 }
 
+function duplicateCollaborationForClaim(
+  source: ClaimEventCollaboration | undefined,
+  newClaimId: string
+): ClaimEventCollaboration {
+  const collaboration = source ?? createEmptyCollaboration();
+  return {
+    reviewStatusByEventId: { ...collaboration.reviewStatusByEventId },
+    assignments: collaboration.assignments.map((assignment) => ({
+      ...assignment,
+      id: createCollaborationId("assign"),
+      claimId: newClaimId,
+    })),
+    bookmarks: collaboration.bookmarks.map((bookmark) => ({
+      ...bookmark,
+      id: createCollaborationId("bookmark"),
+      claimId: newClaimId,
+    })),
+    flags: collaboration.flags.map((flag) => ({
+      ...flag,
+      id: createCollaborationId("flag"),
+      claimId: newClaimId,
+    })),
+    comments: collaboration.comments.map((comment) => ({
+      ...comment,
+      id: createCollaborationId("comment"),
+      claimId: newClaimId,
+    })),
+  };
+}
+
+function duplicateAiAnalysis(
+  source: StoredClaim["aiAnalysis"],
+  newClaimId: string
+): StoredClaim["aiAnalysis"] {
+  if (!source) return null;
+  return {
+    ...source,
+    observations: source.observations.map((item) => ({
+      ...item,
+      claimId: newClaimId,
+    })),
+    documentObservations: source.documentObservations.map((item) => ({
+      ...item,
+      claimId: newClaimId,
+    })),
+    extractions: source.extractions.map((item) => ({
+      ...item,
+      claimId: newClaimId,
+      observations: item.observations.map((observation) => ({
+        ...observation,
+        claimId: newClaimId,
+      })),
+    })),
+    timelineEvents: source.timelineEvents.map((item) => ({
+      ...item,
+      claimId: newClaimId,
+    })),
+    summary: source.summary
+      ? { ...source.summary, claimId: newClaimId }
+      : null,
+  };
+}
+
 export function duplicateStoredClaim(
   source: StoredClaim,
   notes: StoredInvestigationNote[]
@@ -89,6 +155,14 @@ export function duplicateStoredClaim(
     sourceFilter: source.sourceFilter,
     severityFilter: source.severityFilter,
     searchQuery: source.searchQuery,
+    reviewStatusFilter: source.reviewStatusFilter ?? "all",
+    bookmarkFilter: source.bookmarkFilter ?? "all",
+    flagFilter: source.flagFilter ?? "all",
+    aiAnalysis: duplicateAiAnalysis(source.aiAnalysis, newId),
+    eventCollaboration: duplicateCollaborationForClaim(
+      source.eventCollaboration,
+      newId
+    ),
     isSample: false,
   };
 

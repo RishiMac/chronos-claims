@@ -27,6 +27,7 @@ import {
   createCollaborationId,
   enrichTimelineEventsWithCollaboration,
   formatCommentTimestamp,
+  getEventFlags,
   isEventBookmarked,
 } from "@/lib/collaboration/collaborationUtils";
 import { detectTelematicsEvents } from "@/lib/detectTelematicsEvents";
@@ -37,7 +38,7 @@ import {
   estimatePdfPageCount,
   isAcceptedEvidenceFile,
   loadImageDimensions,
-  readTextPreview,
+  readUploadedTextContent,
 } from "@/lib/evidenceUpload";
 import {
   buildEventNoteInsert,
@@ -78,10 +79,13 @@ import {
   renameStoredClaim,
 } from "@/lib/storage/claimOperations";
 import {
-  serializeTelematicsMap,
   workspaceFromStored,
 } from "@/lib/storage/claimSerializer";
 import { resetStorage } from "@/lib/storage/chronosStorage";
+import {
+  getBootstrapStoredClaim,
+  getBootstrapWorkspace,
+} from "@/lib/storage/bootstrapState";
 import {
   createSharePackage,
   getLatestSharePackageForClaim,
@@ -148,6 +152,9 @@ function getDefaultVideoOffset(claim: Claim) {
   return event?.videoOffsetSeconds ?? 0;
 }
 
+const bootstrapStoredClaim = getBootstrapStoredClaim();
+const bootstrapWorkspace = getBootstrapWorkspace();
+
 export function InvestigationWorkspace() {
   const {
     hydrated,
@@ -175,47 +182,65 @@ export function InvestigationWorkspace() {
     [storedClaims, activeClaimId]
   );
 
-  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
+  const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>(
+    bootstrapWorkspace.evidenceFiles
+  );
   const [telematicsByEvidenceId, setTelematicsByEvidenceId] = useState<
     Record<string, ParsedTelematics>
-  >({});
+  >(bootstrapWorkspace.telematicsByEvidenceId);
   const [uploadState, setUploadState] = useState<TelematicsUploadState>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [processedFileName, setProcessedFileName] = useState<string | null>(
     null
   );
-  const [sampleEvidenceLoaded, setSampleEvidenceLoaded] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState("");
+  const [sampleEvidenceLoaded, setSampleEvidenceLoaded] = useState(
+    bootstrapWorkspace.sampleEvidenceLoaded
+  );
+  const [selectedEventId, setSelectedEventId] = useState(
+    bootstrapWorkspace.selectedEventId ||
+      bootstrapStoredClaim.claim.defaultSelectedEventId
+  );
   const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(
-    null
+    bootstrapWorkspace.selectedEvidenceId ??
+      bootstrapStoredClaim.claim.defaultSelectedEvidenceId
   );
   const [activeVideoEvidenceId, setActiveVideoEvidenceId] = useState<
     string | null
-  >(null);
+  >(bootstrapWorkspace.activeVideoEvidenceId);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [modalSharePackage, setModalSharePackage] = useState<SharePackage | null>(
     null
   );
   const [sourceFilter, setSourceFilter] =
-    useState<TimelineSourceFilter>("all");
+    useState<TimelineSourceFilter>(bootstrapWorkspace.sourceFilter);
   const [severityFilter, setSeverityFilter] =
-    useState<SeverityFilter>("all");
+    useState<SeverityFilter>(bootstrapWorkspace.severityFilter);
   const [reviewStatusFilter, setReviewStatusFilter] =
-    useState<ReviewStatusFilter>("all");
-  const [bookmarkFilter, setBookmarkFilter] = useState<BookmarkFilter>("all");
-  const [flagFilter, setFlagFilter] = useState<FlagFilter>("all");
+    useState<ReviewStatusFilter>(bootstrapWorkspace.reviewStatusFilter ?? "all");
+  const [bookmarkFilter, setBookmarkFilter] = useState<BookmarkFilter>(
+    bootstrapWorkspace.bookmarkFilter ?? "all"
+  );
+  const [flagFilter, setFlagFilter] = useState<FlagFilter>(
+    bootstrapWorkspace.flagFilter ?? "all"
+  );
   const [eventCollaboration, setEventCollaboration] =
-    useState<ClaimEventCollaboration>(createEmptyCollaboration());
-  const [currentVideoTime, setCurrentVideoTime] = useState(0);
+    useState<ClaimEventCollaboration>(
+      bootstrapWorkspace.eventCollaboration ?? createEmptyCollaboration()
+    );
+  const [currentVideoTime, setCurrentVideoTime] = useState(() =>
+    getDefaultVideoOffset(bootstrapStoredClaim.claim)
+  );
   const [videoDuration, setVideoDuration] = useState(18);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoSourceLoaded, setVideoSourceLoaded] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
-  const [notesDraft, setNotesDraft] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [notesDraft, setNotesDraft] = useState(bootstrapWorkspace.notesDraft);
+  const [searchQuery, setSearchQuery] = useState(bootstrapWorkspace.searchQuery);
   const [importMessage, setImportMessage] = useState<string | null>(null);
-  const [aiAnalysis, setAiAnalysis] = useState<StoredAiAnalysis | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<StoredAiAnalysis | null>(() =>
+    normalizeStoredAiAnalysis(bootstrapWorkspace.aiAnalysis)
+  );
   const [aiGenerationNotice, setAiGenerationNotice] = useState<string | null>(
     null
   );
@@ -225,6 +250,7 @@ export function InvestigationWorkspace() {
   const playbackIntervalRef = useRef<number | null>(null);
   const objectUrlsRef = useRef<Map<string, string>>(new Map());
   const workspaceLoadedRef = useRef(false);
+  const skipNextWorkspacePersist = useRef(true);
 
   const investigationNotes = useMemo(
     () =>
@@ -242,10 +268,16 @@ export function InvestigationWorkspace() {
     [allActivities, activeClaimId]
   );
 
-  const latestSharePackage = useMemo(
-    () => getLatestSharePackageForClaim(activeClaimId),
-    [sharePackages, activeClaimId]
-  );
+  const latestSharePackage = useMemo(() => {
+    return (
+      sharePackages
+        .filter((pkg) => pkg.claimId === activeClaimId)
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )[0] ?? null
+    );
+  }, [sharePackages, activeClaimId]);
 
   const loadWorkspaceFromStored = useCallback((stored: StoredClaim) => {
     const workspace = workspaceFromStored(stored);
@@ -295,16 +327,19 @@ export function InvestigationWorkspace() {
 
   useEffect(() => {
     if (!hydrated || workspaceLoadedRef.current) return;
-    const stored =
-      storedClaims.find((item) => item.claim.id === selectedClaimId) ??
-      storedClaims[0];
-    if (stored) {
-      loadWorkspaceFromStored(stored);
-      if (!selectedClaimId) {
-        setSelectedClaimId(stored.claim.id);
+    queueMicrotask(() => {
+      const stored =
+        storedClaims.find((item) => item.claim.id === selectedClaimId) ??
+        storedClaims[0];
+      if (stored) {
+        loadWorkspaceFromStored(stored);
+        if (!selectedClaimId) {
+          setSelectedClaimId(stored.claim.id);
+        }
       }
-    }
-    workspaceLoadedRef.current = true;
+      workspaceLoadedRef.current = true;
+      skipNextWorkspacePersist.current = true;
+    });
   }, [
     hydrated,
     storedClaims,
@@ -315,6 +350,10 @@ export function InvestigationWorkspace() {
 
   useEffect(() => {
     if (!hydrated || !workspaceLoadedRef.current || !activeClaimId) return;
+    if (skipNextWorkspacePersist.current) {
+      skipNextWorkspacePersist.current = false;
+      return;
+    }
     updateStoredClaimWorkspace(activeClaimId, {
       evidenceFiles,
       telematicsByEvidenceId,
@@ -506,18 +545,25 @@ export function InvestigationWorkspace() {
     "—";
 
   useEffect(() => {
-    setVideoDuration(computeVideoDuration(timelineEvents, activeTelematics));
+    queueMicrotask(() => {
+      setVideoDuration(computeVideoDuration(timelineEvents, activeTelematics));
+    });
   }, [timelineEvents, activeTelematics]);
 
-  useEffect(() => {
+  const resetVideoForSourceChange = useCallback(() => {
     setVideoSourceLoaded(false);
     setIsVideoPlaying(false);
-  }, [videoConfig.src]);
+  }, []);
 
   useEffect(() => {
+    queueMicrotask(resetVideoForSourceChange);
+  }, [videoConfig.src, resetVideoForSourceChange]);
+
+  useEffect(() => {
+    const objectUrls = objectUrlsRef.current;
     return () => {
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      objectUrlsRef.current.clear();
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls.clear();
     };
   }, []);
 
@@ -831,7 +877,7 @@ export function InvestigationWorkspace() {
   }, [
     storedClaims,
     activeClaimId,
-    activeClaim.title,
+    activeClaim,
     setStoredClaims,
     setAllNotes,
     setAllActivities,
@@ -984,7 +1030,8 @@ export function InvestigationWorkspace() {
 
       if (fileType === "text") {
         try {
-          const preview = await readTextPreview(file);
+          const { preview, storedText, warnings } =
+            await readUploadedTextContent(file);
           evidence = {
             ...evidence,
             metadata: {
@@ -992,6 +1039,10 @@ export function InvestigationWorkspace() {
               source: "Uploaded text document",
               description: "Text evidence file added to the investigation.",
               textPreview: preview,
+              storedTextContent: storedText,
+              warnings: warnings
+                ? [...(evidence.metadata.warnings ?? []), ...warnings]
+                : evidence.metadata.warnings,
             },
           };
         } catch {
@@ -1367,6 +1418,11 @@ export function InvestigationWorkspace() {
       );
   }, [eventCollaboration.comments, selectedEventId]);
 
+  const selectedEventFlags = useMemo(() => {
+    if (!selectedEventId) return [];
+    return getEventFlags(eventCollaboration, selectedEventId);
+  }, [eventCollaboration, selectedEventId]);
+
   const reviewSummary = useMemo(
     () => computeReviewSummary(timelineEvents),
     [timelineEvents]
@@ -1418,7 +1474,12 @@ export function InvestigationWorkspace() {
       };
       setEventCollaboration((previous) => ({
         ...previous,
-        assignments: [...previous.assignments, assignment],
+        assignments: [
+          ...previous.assignments.filter(
+            (item) => item.eventId !== selectedEventId
+          ),
+          assignment,
+        ],
       }));
       logActivity(
         "assigned_event",
@@ -1428,6 +1489,21 @@ export function InvestigationWorkspace() {
     },
     [activeClaimId, selectedEventId, logActivity]
   );
+
+  const handleUnassignEvent = useCallback(() => {
+    if (!selectedEventId || !activeClaimId) return;
+    setEventCollaboration((previous) => ({
+      ...previous,
+      assignments: previous.assignments.filter(
+        (item) => item.eventId !== selectedEventId
+      ),
+    }));
+    logActivity(
+      "assigned_event",
+      "Unassigned event",
+      selectedEventId
+    );
+  }, [activeClaimId, selectedEventId, logActivity]);
 
   const handleToggleBookmark = useCallback(() => {
     if (!selectedEventId || !activeClaimId) return;
@@ -1467,6 +1543,10 @@ export function InvestigationWorkspace() {
   const handleAddFlag = useCallback(
     (flagType: EventFlagType) => {
       if (!selectedEventId || !activeClaimId) return;
+      const existingFlags = getEventFlags(eventCollaboration, selectedEventId);
+      if (existingFlags.some((item) => item.flagType === flagType)) {
+        return;
+      }
       const flag: EventFlag = {
         id: createCollaborationId("flag"),
         claimId: activeClaimId,
@@ -1484,7 +1564,25 @@ export function InvestigationWorkspace() {
         selectedEventId
       );
     },
-    [activeClaimId, selectedEventId, logActivity]
+    [activeClaimId, selectedEventId, eventCollaboration, logActivity]
+  );
+
+  const handleRemoveFlag = useCallback(
+    (flagId: string) => {
+      if (!selectedEventId || !activeClaimId) return;
+      const flag = eventCollaboration.flags.find((item) => item.id === flagId);
+      if (!flag) return;
+      setEventCollaboration((previous) => ({
+        ...previous,
+        flags: previous.flags.filter((item) => item.id !== flagId),
+      }));
+      logActivity(
+        "general",
+        `Removed flag: ${FLAG_TYPE_LABELS[flag.flagType]}`,
+        selectedEventId
+      );
+    },
+    [activeClaimId, selectedEventId, eventCollaboration.flags, logActivity]
   );
 
   const handleAddComment = useCallback(
@@ -1690,10 +1788,13 @@ export function InvestigationWorkspace() {
           onPreviewEvidence={handlePreviewEvidence}
           onOpenEvidenceReference={handleOpenEvidenceReference}
           eventComments={selectedEventComments}
+          eventFlags={selectedEventFlags}
           onReviewStatusChange={handleReviewStatusChange}
           onAssignEvent={handleAssignEvent}
+          onUnassignEvent={handleUnassignEvent}
           onToggleBookmark={handleToggleBookmark}
           onAddFlag={handleAddFlag}
+          onRemoveFlag={handleRemoveFlag}
           onAddComment={handleAddComment}
         />
       </div>

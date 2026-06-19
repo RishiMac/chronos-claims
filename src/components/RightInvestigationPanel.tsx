@@ -17,6 +17,7 @@ import type {
 } from "@/types/claim";
 import type {
   EventComment,
+  EventFlag,
   EventFlagType,
   ReviewStatus,
 } from "@/types/collaboration";
@@ -52,10 +53,13 @@ interface RightInvestigationPanelProps {
   onPreviewEvidence?: (evidenceId: string) => void;
   onOpenEvidenceReference?: (reference: EvidenceReference) => void;
   eventComments?: EventComment[];
+  eventFlags?: EventFlag[];
   onReviewStatusChange?: (status: ReviewStatus) => void;
   onAssignEvent?: (assigneeName: string) => void;
+  onUnassignEvent?: () => void;
   onToggleBookmark?: () => void;
   onAddFlag?: (flagType: EventFlagType) => void;
+  onRemoveFlag?: (flagId: string) => void;
   onAddComment?: (body: string) => void;
 }
 
@@ -86,10 +90,13 @@ export function RightInvestigationPanel({
   onPreviewEvidence,
   onOpenEvidenceReference,
   eventComments,
+  eventFlags,
   onReviewStatusChange,
   onAssignEvent,
+  onUnassignEvent,
   onToggleBookmark,
   onAddFlag,
+  onRemoveFlag,
   onAddComment,
 }: RightInvestigationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -198,10 +205,13 @@ export function RightInvestigationPanel({
             onPreviewEvidence={onPreviewEvidence}
             onOpenEvidenceReference={onOpenEvidenceReference}
             eventComments={eventComments}
+            eventFlags={eventFlags}
             onReviewStatusChange={onReviewStatusChange}
             onAssignEvent={onAssignEvent}
+            onUnassignEvent={onUnassignEvent}
             onToggleBookmark={onToggleBookmark}
             onAddFlag={onAddFlag}
+            onRemoveFlag={onRemoveFlag}
             onAddComment={onAddComment}
           />
         </div>

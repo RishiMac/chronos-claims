@@ -36,6 +36,8 @@ function unlockStorageKey(token: string) {
   return `chronos_share_unlock_${token}`;
 }
 
+// Passcode unlock state uses sessionStorage (not chronosStorage) — session-scoped only.
+
 function logShareActivity(
   claimId: string,
   action:
@@ -79,34 +81,36 @@ export function SharePackagePageClient({ token }: SharePackagePageClientProps) {
   }, [token]);
 
   useEffect(() => {
-    const data = getSharePackageViewData(token);
-    setViewData(data ?? null);
-    if (!data) return;
+    queueMicrotask(() => {
+      const data = getSharePackageViewData(token);
+      setViewData(data ?? null);
+      if (!data) return;
 
-    const sessionUnlocked =
-      typeof window !== "undefined" &&
-      window.sessionStorage.getItem(unlockStorageKey(token)) === "1";
+      const sessionUnlocked =
+        typeof window !== "undefined" &&
+        window.sessionStorage.getItem(unlockStorageKey(token)) === "1";
 
-    if (
-      data.accessible &&
-      data.sharePackage.accessMode === "anyone_with_link"
-    ) {
-      setUnlocked(true);
-      if (!sessionUnlocked) {
-        recordAccess(data);
-        window.sessionStorage.setItem(unlockStorageKey(token), "1");
+      if (
+        data.accessible &&
+        data.sharePackage.accessMode === "anyone_with_link"
+      ) {
+        setUnlocked(true);
+        if (!sessionUnlocked) {
+          recordAccess(data);
+          window.sessionStorage.setItem(unlockStorageKey(token), "1");
+        }
+        return;
       }
-      return;
-    }
 
-    if (
-      data.accessible &&
-      data.sharePackage.accessMode === "passcode_required" &&
-      sessionUnlocked
-    ) {
-      setUnlocked(true);
-      accessRecordedRef.current = true;
-    }
+      if (
+        data.accessible &&
+        data.sharePackage.accessMode === "passcode_required" &&
+        sessionUnlocked
+      ) {
+        setUnlocked(true);
+        accessRecordedRef.current = true;
+      }
+    });
   }, [token, recordAccess]);
 
   const handlePasscodeSubmit = async (event: React.FormEvent) => {

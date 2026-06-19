@@ -1,7 +1,6 @@
 import {
   detectColumnIndex,
   GEOTAB_COLUMNS,
-  GENERIC_COLUMNS,
   normalizeHeaders,
   SAMSARA_COLUMNS,
   VERIZON_COLUMNS,

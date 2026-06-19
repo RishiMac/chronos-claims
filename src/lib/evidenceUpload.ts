@@ -109,6 +109,29 @@ export async function readTextPreview(file: File, maxLength = 280): Promise<stri
   return text.slice(0, maxLength).trim();
 }
 
+export const MAX_STORED_TEXT_BYTES = 1024 * 1024;
+
+export async function readUploadedTextContent(file: File): Promise<{
+  preview: string;
+  storedText?: string;
+  warnings?: string[];
+}> {
+  const text = await file.text();
+  const preview = text.slice(0, 280).trim();
+  const byteLength = new TextEncoder().encode(text).length;
+
+  if (byteLength <= MAX_STORED_TEXT_BYTES) {
+    return { preview, storedText: text };
+  }
+
+  return {
+    preview,
+    warnings: [
+      `Text exceeds ${MAX_STORED_TEXT_BYTES / 1024}KB storage cap; only preview persisted for extraction.`,
+    ],
+  };
+}
+
 export function getAcceptAttribute(): string {
   return ".mp4,.csv,.txt,.pdf,.jpg,.jpeg,.png,.zip,video/*,image/*,application/pdf,text/plain";
 }

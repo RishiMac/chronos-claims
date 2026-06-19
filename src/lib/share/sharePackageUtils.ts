@@ -1,6 +1,5 @@
 import {
   DEFAULT_SHARE_INCLUDED_SECTIONS,
-  DEFAULT_SHARE_SETTINGS,
 } from "@/types/share-package";
 import type {
   SharePackage,

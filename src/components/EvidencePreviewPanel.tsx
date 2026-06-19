@@ -165,7 +165,9 @@ function TextPreviewContent({
   file: EvidenceFile;
   activeReference: EvidenceReference | null;
 }) {
-  const [text, setText] = useState(file.metadata.textPreview ?? "");
+  const [text, setText] = useState(
+    () => file.metadata.storedTextContent ?? file.metadata.textPreview ?? ""
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lineRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -173,15 +175,30 @@ function TextPreviewContent({
   useEffect(() => {
     if (text || !file.metadata.publicUrl) return;
 
-    setLoading(true);
-    fetch(file.metadata.publicUrl)
-      .then((response) => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(file.metadata.publicUrl!);
         if (!response.ok) throw new Error("Unable to load text file.");
-        return response.text();
-      })
-      .then((content) => setText(content.trim()))
-      .catch(() => setError("Text preview unavailable."))
-      .finally(() => setLoading(false));
+        const content = await response.text();
+        if (!cancelled) {
+          setText(content.trim());
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Text preview unavailable.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [file.metadata.publicUrl, text]);
 
   useEffect(() => {

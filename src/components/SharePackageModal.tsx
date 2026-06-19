@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, ExternalLink, Link2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { PasscodeInput } from "@/components/PasscodeInput";
 import { Badge } from "@/components/ui/badge";
@@ -94,15 +94,21 @@ export function SharePackageModal({
   );
   const [passcode, setPasscode] = useState("");
 
-  useEffect(() => {
-    if (!open) return;
+  const syncSettingsFromPackage = useCallback(() => {
     const settings = settingsFromPackage(sharePackage);
     setExpiration(settings.expiration);
     setAccessMode(settings.accessMode);
     setIncludedSections(sectionsFromPackage(sharePackage));
     setPasscode("");
     setCopied(false);
-  }, [open, sharePackage]);
+  }, [sharePackage]);
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      syncSettingsFromPackage();
+    }
+    onOpenChange(nextOpen);
+  };
 
   const status = useMemo(
     () => (sharePackage ? getSharePackageStatus(sharePackage) : null),
@@ -244,7 +250,7 @@ export function SharePackageModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
         <DialogHeader className="shrink-0 gap-2 px-4 pt-4">
           <DialogTitle className="flex items-center gap-2 pr-8">
@@ -392,7 +398,7 @@ export function SharePackageModal({
         </div>
 
         <DialogFooter className="shrink-0 border-t bg-muted/50 px-4 py-3">
-          <Button onClick={() => onOpenChange(false)}>Done</Button>
+          <Button onClick={() => handleDialogOpenChange(false)}>Done</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

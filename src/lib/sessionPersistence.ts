@@ -151,6 +151,7 @@ function serializeTimelineEvent(
 }
 
 function stripObjectUrls(file: EvidenceFile): EvidenceFile {
-  const { objectUrl: _objectUrl, ...rest } = file;
+  const rest = { ...file };
+  delete rest.objectUrl;
   return rest;
 }

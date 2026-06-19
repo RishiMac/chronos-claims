@@ -1,5 +1,3 @@
-import type { SerializedTelematics } from "@/types/claim";
-
 export interface StoredInvestigationNote {
   id: string;
   claimId: string;

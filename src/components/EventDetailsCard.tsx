@@ -16,6 +16,7 @@ import type { ConfidenceLevel, EvidenceFile, TimelineEvent } from "@/types/claim
 import type { EvidenceReference } from "@/types/evidence-reference";
 import type {
   EventComment,
+  EventFlag,
   EventFlagType,
   ReviewStatus,
 } from "@/types/collaboration";
@@ -25,13 +26,16 @@ interface EventDetailsCardProps {
   linkedEvidence: EvidenceFile[];
   hiddenByFilter?: boolean;
   eventComments?: EventComment[];
+  eventFlags?: EventFlag[];
   onCopySummary?: () => void;
   onPreviewEvidence?: (evidenceId: string) => void;
   onOpenEvidenceReference?: (reference: EvidenceReference) => void;
   onReviewStatusChange?: (status: ReviewStatus) => void;
   onAssignEvent?: (assigneeName: string) => void;
+  onUnassignEvent?: () => void;
   onToggleBookmark?: () => void;
   onAddFlag?: (flagType: EventFlagType) => void;
+  onRemoveFlag?: (flagId: string) => void;
   onAddComment?: (body: string) => void;
 }
 
@@ -49,10 +53,13 @@ export function EventDetailsCard({
   onPreviewEvidence,
   onOpenEvidenceReference,
   eventComments = [],
+  eventFlags = [],
   onReviewStatusChange,
   onAssignEvent,
+  onUnassignEvent,
   onToggleBookmark,
   onAddFlag,
+  onRemoveFlag,
   onAddComment,
 }: EventDetailsCardProps) {
   const [copied, setCopied] = useState(false);
@@ -197,37 +204,33 @@ export function EventDetailsCard({
 
         {onReviewStatusChange &&
           onAssignEvent &&
+          onUnassignEvent &&
           onToggleBookmark &&
           onAddFlag &&
+          onRemoveFlag &&
           onAddComment && (
             <EventCollaborationPanel
               event={event}
               comments={eventComments}
+              eventFlags={eventFlags}
               onReviewStatusChange={onReviewStatusChange}
               onAssign={onAssignEvent}
+              onUnassign={onUnassignEvent}
               onToggleBookmark={onToggleBookmark}
               onAddFlag={onAddFlag}
+              onRemoveFlag={onRemoveFlag}
               onAddComment={onAddComment}
             />
           )}
 
-        <div>
-          <label
-            htmlFor="event-notes"
-            className="text-[12px] text-slate-500"
-          >
-            Event notes
-          </label>
-          <div
-            id="event-notes"
-            className="mt-1.5 min-h-16 rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-2.5 py-2 text-[12px] leading-snug text-slate-500"
-          >
-            {event.notes}
-            <span className="mt-1.5 block text-slate-400">
-              Add reviewer notes here (placeholder)
-            </span>
+        {event.notes.trim() && (
+          <div>
+            <p className="text-[12px] text-slate-500">Event notes</p>
+            <div className="mt-1.5 rounded-md border border-slate-200 bg-slate-50/50 px-2.5 py-2 text-[12px] leading-snug text-slate-600">
+              {event.notes}
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

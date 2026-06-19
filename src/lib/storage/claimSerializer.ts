@@ -8,7 +8,8 @@ import type { ClaimWorkspaceSnapshot, StoredClaim } from "@/types/stored-claim";
 
 export function stripEvidenceForStorage(files: EvidenceFile[]): EvidenceFile[] {
   return files.map((file) => {
-    const { objectUrl: _objectUrl, ...rest } = file;
+    const rest = { ...file };
+    delete rest.objectUrl;
     return rest;
   });
 }
