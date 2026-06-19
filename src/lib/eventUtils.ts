@@ -1,4 +1,3 @@
-import { UPLOADED_EVIDENCE_ID } from "@/lib/detectTelematicsEvents";
 import type {
   EventSeverity,
   EvidenceFile,
@@ -64,7 +63,6 @@ export function eventMatchesSourceFilter(
           file.id === "ev-telematics" ||
           (file.fileType === "csv" &&
             file.id !== "ev-gps" &&
-            file.id !== UPLOADED_EVIDENCE_ID &&
             !file.name.toLowerCase().includes("gps"))
       );
     case "gps":
@@ -95,13 +93,42 @@ export function filterTimelineEvents(
   events: TimelineEvent[],
   evidenceFiles: EvidenceFile[],
   sourceFilter: TimelineSourceFilter,
-  severityFilter: SeverityFilter
+  severityFilter: SeverityFilter,
+  searchQuery = ""
 ): TimelineEvent[] {
-  return events.filter(
-    (event) =>
-      eventMatchesSourceFilter(event, evidenceFiles, sourceFilter) &&
-      eventMatchesSeverityFilter(event, severityFilter)
-  );
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  return events.filter((event) => {
+    if (!eventMatchesSourceFilter(event, evidenceFiles, sourceFilter)) {
+      return false;
+    }
+    if (!eventMatchesSeverityFilter(event, severityFilter)) {
+      return false;
+    }
+    if (!normalizedQuery) return true;
+    return eventMatchesSearchQuery(event, evidenceFiles, normalizedQuery);
+  });
+}
+
+function eventMatchesSearchQuery(
+  event: TimelineEvent,
+  evidenceFiles: EvidenceFile[],
+  query: string
+): boolean {
+  const linkedNames = event.linkedEvidenceIds
+    .map((id) => evidenceFiles.find((file) => file.id === id)?.name ?? "")
+    .join(" ");
+
+  const haystack = [
+    event.title,
+    event.description,
+    event.notes,
+    linkedNames,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
 }
 
 export function computeInvestigationStats(
@@ -191,4 +218,31 @@ export function buildEventNoteInsert(
     .join(", ");
 
   return `[${event.timestamp}] ${event.title} — source references: ${sources}`;
+}
+
+export function buildEventSummaryCopy(
+  event: TimelineEvent,
+  linkedEvidence: EvidenceFile[]
+): string {
+  const sources = linkedEvidence.map((file) => file.name).join("\n");
+
+  return `${event.timestamp}
+${event.title}
+
+Sources:
+${sources}
+
+Confidence: ${event.confidence}
+
+Notes:
+${event.notes}`;
+}
+
+export function formatActivityTimestamp(date = new Date()): string {
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
 }

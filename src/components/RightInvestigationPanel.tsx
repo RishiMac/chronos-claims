@@ -25,10 +25,15 @@ interface RightInvestigationPanelProps {
   onSelectEvent: (id: string) => void;
   sourceFilter: TimelineSourceFilter;
   severityFilter: SeverityFilter;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
   onSourceFilterChange: (filter: TimelineSourceFilter) => void;
   onSeverityFilterChange: (filter: SeverityFilter) => void;
   stats: InvestigationStats;
   selectedEventHiddenByFilter: boolean;
+  isVideoPlaying: boolean;
+  playbackEvent: TimelineEvent | null;
+  onCopySummary?: () => void;
 }
 
 export function RightInvestigationPanel({
@@ -40,10 +45,15 @@ export function RightInvestigationPanel({
   onSelectEvent,
   sourceFilter,
   severityFilter,
+  searchQuery,
+  onSearchQueryChange,
   onSourceFilterChange,
   onSeverityFilterChange,
   stats,
   selectedEventHiddenByFilter,
+  isVideoPlaying,
+  playbackEvent,
+  onCopySummary,
 }: RightInvestigationPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timelineRatio, setTimelineRatio] = useState(DEFAULT_TIMELINE_RATIO);
@@ -101,10 +111,14 @@ export function RightInvestigationPanel({
           onSelectEvent={onSelectEvent}
           sourceFilter={sourceFilter}
           severityFilter={severityFilter}
+          searchQuery={searchQuery}
+          onSearchQueryChange={onSearchQueryChange}
           onSourceFilterChange={onSourceFilterChange}
           onSeverityFilterChange={onSeverityFilterChange}
           stats={stats}
           selectedEventHiddenByFilter={selectedEventHiddenByFilter}
+          isVideoPlaying={isVideoPlaying}
+          playbackEvent={playbackEvent}
         />
       </div>
 
@@ -136,6 +150,7 @@ export function RightInvestigationPanel({
             event={selectedEvent}
             linkedEvidence={linkedEvidence}
             hiddenByFilter={selectedEventHiddenByFilter}
+            onCopySummary={onCopySummary}
           />
         </div>
       </div>

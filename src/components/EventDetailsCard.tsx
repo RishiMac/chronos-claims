@@ -1,8 +1,12 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
+import { useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { severityStyles } from "@/lib/eventUtils";
+import { buildEventSummaryCopy, severityStyles } from "@/lib/eventUtils";
 import { cn } from "@/lib/utils";
 import type { ConfidenceLevel, EvidenceFile, TimelineEvent } from "@/types/claim";
 
@@ -10,6 +14,7 @@ interface EventDetailsCardProps {
   event: TimelineEvent | null;
   linkedEvidence: EvidenceFile[];
   hiddenByFilter?: boolean;
+  onCopySummary?: () => void;
 }
 
 const confidenceStyles: Record<ConfidenceLevel, string> = {
@@ -22,7 +27,19 @@ export function EventDetailsCard({
   event,
   linkedEvidence,
   hiddenByFilter = false,
+  onCopySummary,
 }: EventDetailsCardProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!event) return;
+    const summary = buildEventSummaryCopy(event, linkedEvidence);
+    await navigator.clipboard.writeText(summary);
+    setCopied(true);
+    onCopySummary?.();
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (!event) {
     return (
       <Card className="border-slate-200 shadow-none">
@@ -42,10 +59,29 @@ export function EventDetailsCard({
 
   return (
     <Card className="border-slate-200 shadow-none">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/50 px-3 py-2.5">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 bg-slate-50/50 px-3 py-2.5">
         <CardTitle className="text-[13px] font-medium text-slate-900">
           Selected Event Details
         </CardTitle>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleCopy}
+          className="h-7 gap-1 px-2 text-[11px] transition-colors hover:bg-slate-50"
+        >
+          {copied ? (
+            <>
+              <Check className="size-3" />
+              Copied
+            </>
+          ) : (
+            <>
+              <Copy className="size-3" />
+              Copy Event Summary
+            </>
+          )}
+        </Button>
       </CardHeader>
       <CardContent className="space-y-3 p-3">
         {hiddenByFilter && (

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
+  <rect width="640" height="420" fill="#1e293b"/>
+  <rect x="40" y="180" width="560" height="80" fill="#334155" rx="8"/>
+  <rect x="120" y="120" width="160" height="90" fill="#64748b" rx="6"/>
+  <rect x="360" y="130" width="140" height="70" fill="#94a3b8" rx="6"/>
+  <text x="320" y="60" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="24" text-anchor="middle">Scene Photo 2</text>
+  <text x="320" y="90" fill="#94a3b8" font-family="Arial, sans-serif" font-size="14" text-anchor="middle">CC-2026-002 — alternate angle</text>
+  <text x="320" y="390" fill="#64748b" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Demo scene diagram — supports human review only</text>
+</svg>

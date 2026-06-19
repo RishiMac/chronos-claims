@@ -1,0 +1,7 @@
+DRIVER STATEMENT — Unit UT-2188
+Driver: Marcus Chen (fleet assigned)
+
+I entered Oak Ridge Blvd & Elm St with a green signal.
+I observed cross traffic on my right during the crossing phase.
+I braked hard after sensing impact on the passenger side.
+Statement provided to support review and may differ from telemetry timing.

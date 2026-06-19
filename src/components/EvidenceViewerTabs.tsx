@@ -2,22 +2,32 @@
 
 import { useState } from "react";
 
+import { CsvEvidenceViewer } from "@/components/CsvEvidenceViewer";
+import { ImageEvidenceViewer } from "@/components/ImageEvidenceViewer";
 import { InvestigationNotesPanel } from "@/components/InvestigationNotesPanel";
 import { MapPlaceholder } from "@/components/MapPlaceholder";
+import { PdfEvidenceViewer } from "@/components/PdfEvidenceViewer";
 import { SpeedGraph } from "@/components/SpeedGraph";
+import { TextEvidenceViewer } from "@/components/TextEvidenceViewer";
 import { VideoViewer } from "@/components/VideoViewer";
 import { cn } from "@/lib/utils";
 import type {
+  EvidenceFile,
   InvestigationNote,
   MapMarker,
+  ParsedTelematics,
+  SessionActivityEntry,
   SpeedDataPoint,
   TimelineEvent,
 } from "@/types/claim";
 
-type ViewerTab = "video" | "telemetry" | "map" | "notes";
+export type ViewerTab = "video" | "telemetry" | "map" | "notes";
 
 interface EvidenceViewerTabsProps {
   selectedEvent: TimelineEvent | null;
+  selectedEvidence: EvidenceFile | null;
+  parsedTelematics: ParsedTelematics | null;
+  mapRouteLabel: string;
   speedData: SpeedDataPoint[];
   mapRoute: { x: number; y: number }[];
   mapMarkers: MapMarker[];
@@ -27,6 +37,9 @@ interface EvidenceViewerTabsProps {
   videoDuration: number;
   isVideoPlaying: boolean;
   videoSourceLoaded: boolean;
+  videoSrc: string;
+  videoFileName: string;
+  isUploadedVideo: boolean;
   onPlayPause: () => void;
   onVideoTimeUpdate: (time: number) => void;
   onVideoLoaded: (duration: number) => void;
@@ -35,11 +48,16 @@ interface EvidenceViewerTabsProps {
   onScrubbingChange: (isScrubbing: boolean) => void;
   notesDraft: string;
   investigationNotes: InvestigationNote[];
+  activityLog: SessionActivityEntry[];
   currentTimestamp: string;
+  importMessage: string | null;
   onNotesDraftChange: (value: string) => void;
   onInsertSelectedEvent: () => void;
   onInsertTimestamp: () => void;
   onAddNote: () => void;
+  onExportSession: () => void;
+  onImportSession: (file: File) => void;
+  onTabChange?: (tab: ViewerTab) => void;
 }
 
 const tabs: { id: ViewerTab; label: string }[] = [
@@ -51,6 +69,9 @@ const tabs: { id: ViewerTab; label: string }[] = [
 
 export function EvidenceViewerTabs({
   selectedEvent,
+  selectedEvidence,
+  parsedTelematics,
+  mapRouteLabel,
   speedData,
   mapRoute,
   mapMarkers,
@@ -60,6 +81,9 @@ export function EvidenceViewerTabs({
   videoDuration,
   isVideoPlaying,
   videoSourceLoaded,
+  videoSrc,
+  videoFileName,
+  isUploadedVideo,
   onPlayPause,
   onVideoTimeUpdate,
   onVideoLoaded,
@@ -68,13 +92,76 @@ export function EvidenceViewerTabs({
   onScrubbingChange,
   notesDraft,
   investigationNotes,
+  activityLog,
   currentTimestamp,
+  importMessage,
   onNotesDraftChange,
   onInsertSelectedEvent,
   onInsertTimestamp,
   onAddNote,
+  onExportSession,
+  onImportSession,
+  onTabChange,
 }: EvidenceViewerTabsProps) {
   const [activeTab, setActiveTab] = useState<ViewerTab>("video");
+
+  const handleTabChange = (tab: ViewerTab) => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
+
+  const renderVideoTabContent = () => {
+    if (selectedEvidence?.fileType === "image") {
+      return <ImageEvidenceViewer file={selectedEvidence} />;
+    }
+
+    if (selectedEvidence?.fileType === "pdf") {
+      return <PdfEvidenceViewer file={selectedEvidence} />;
+    }
+
+    if (selectedEvidence?.fileType === "text") {
+      return <TextEvidenceViewer file={selectedEvidence} />;
+    }
+
+    if (selectedEvidence?.fileType === "csv") {
+      return (
+        <CsvEvidenceViewer
+          file={selectedEvidence}
+          parsedTelematics={parsedTelematics}
+        />
+      );
+    }
+
+    if (!selectedEvent) {
+      return (
+        <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center">
+          <p className="text-[13px] text-muted-foreground">
+            Select an event to synchronize the investigation workspace.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <VideoViewer
+        selectedEvent={selectedEvent}
+        currentTime={currentVideoTime}
+        duration={videoDuration}
+        isPlaying={isVideoPlaying}
+        videoSourceLoaded={videoSourceLoaded}
+        videoSrc={videoSrc}
+        videoFileName={videoFileName}
+        isUploadedVideo={isUploadedVideo}
+        onPlayPause={onPlayPause}
+        onTimeUpdate={onVideoTimeUpdate}
+        onVideoLoaded={onVideoLoaded}
+        onVideoError={onVideoError}
+        onSeek={onVideoSeek}
+        onScrubbingChange={onScrubbingChange}
+      />
+    );
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -84,12 +171,12 @@ export function EvidenceViewerTabs({
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={cn(
                 "flex-1 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
                 activeTab === tab.id
                   ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  : "text-slate-500 hover:bg-white/60 hover:text-slate-700"
               )}
             >
               {tab.label}
@@ -99,28 +186,7 @@ export function EvidenceViewerTabs({
       </div>
 
       <div className="p-4 lg:p-5">
-        {activeTab === "video" &&
-          (selectedEvent ? (
-            <VideoViewer
-              selectedEvent={selectedEvent}
-              currentTime={currentVideoTime}
-              duration={videoDuration}
-              isPlaying={isVideoPlaying}
-              videoSourceLoaded={videoSourceLoaded}
-              onPlayPause={onPlayPause}
-              onTimeUpdate={onVideoTimeUpdate}
-              onVideoLoaded={onVideoLoaded}
-              onVideoError={onVideoError}
-              onSeek={onVideoSeek}
-              onScrubbingChange={onScrubbingChange}
-            />
-          ) : (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-white px-4 py-8 text-center">
-              <p className="text-[13px] text-muted-foreground">
-                Select an event to synchronize the investigation workspace.
-              </p>
-            </div>
-          ))}
+        {activeTab === "video" && renderVideoTabContent()}
 
         {activeTab === "telemetry" && (
           <div className="space-y-3">
@@ -142,11 +208,13 @@ export function EvidenceViewerTabs({
             route={mapRoute}
             markers={mapMarkers}
             highlightedMarkerId={selectedEvent?.markerId ?? null}
-            hasGpsCoordinates={hasUploadedTelematics ? hasGpsCoordinates : true}
+            hasGpsCoordinates={
+              hasUploadedTelematics ? hasGpsCoordinates : true
+            }
             routeLabel={
               hasUploadedTelematics
                 ? "Uploaded telematics route — normalized coordinates"
-                : "Market St & 5th Ave — schematic route"
+                : mapRouteLabel
             }
           />
         )}
@@ -155,12 +223,16 @@ export function EvidenceViewerTabs({
           <InvestigationNotesPanel
             draft={notesDraft}
             notes={investigationNotes}
+            activityLog={activityLog}
             selectedEvent={selectedEvent}
             currentTimestamp={currentTimestamp}
+            importMessage={importMessage}
             onDraftChange={onNotesDraftChange}
             onInsertSelectedEvent={onInsertSelectedEvent}
             onInsertTimestamp={onInsertTimestamp}
             onAddNote={onAddNote}
+            onExportSession={onExportSession}
+            onImportSession={onImportSession}
           />
         )}
       </div>

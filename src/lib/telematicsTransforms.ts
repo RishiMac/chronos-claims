@@ -9,36 +9,53 @@ import type {
 } from "@/types/claim";
 
 export function buildParsedTelematics(
-  parsed: Omit<ParsedTelematics, "detectedEvents" | "hasGpsCoordinates"> & {
-    detectedEvents: TimelineEvent[];
-  }
+  evidenceId: string,
+  parsed: {
+    fileName: string;
+    rows: TelematicsRow[];
+    uploadedAt: string;
+    timeRange: { start: string; end: string };
+    warnings: string[];
+  },
+  detectedEvents: TimelineEvent[]
 ): ParsedTelematics {
   return {
-    ...parsed,
+    evidenceId,
+    fileName: parsed.fileName,
+    rows: parsed.rows,
+    uploadedAt: parsed.uploadedAt,
+    timeRange: parsed.timeRange,
+    detectedEvents,
+    warnings: parsed.warnings,
     hasGpsCoordinates: parsed.rows.some(
       (row) => row.latitude !== undefined && row.longitude !== undefined
     ),
   };
 }
 
-export function createUploadedEvidenceFile(
+export function enrichTelematicsEvidenceFile(
+  evidence: EvidenceFile,
   parsed: ParsedTelematics,
   fileSizeBytes?: number
 ): EvidenceFile {
   return {
-    id: "ev-uploaded-telematics",
-    name: parsed.fileName,
-    fileType: "csv",
+    ...evidence,
     status: "Processed",
     metadata: {
-      uploadedAt: parsed.uploadedAt,
-      fileSize: fileSizeBytes ? formatBytes(fileSizeBytes) : "—",
-      source: "Uploaded telematics CSV",
-      description:
-        "Uploaded telemetry export parsed client-side to support synchronized review.",
+      ...evidence.metadata,
+      fileSize: fileSizeBytes
+        ? formatBytes(fileSizeBytes)
+        : evidence.metadata.fileSize,
+      source: evidence.isSampleFile
+        ? evidence.metadata.source
+        : "Uploaded telematics CSV",
+      description: evidence.isSampleFile
+        ? evidence.metadata.description
+        : "Uploaded telemetry export parsed client-side to support synchronized review.",
       recordCount: parsed.rows.length,
       timeRange: parsed.timeRange,
       detectedEventCount: parsed.detectedEvents.length,
+      warnings: parsed.warnings.length > 0 ? parsed.warnings : undefined,
     },
   };
 }
@@ -54,6 +71,14 @@ export function mergeTimelineEvents(
 
   return [...baselineWithSort, ...uploadedEvents].sort(
     (a, b) => (a.sortDate?.getTime() ?? 0) - (b.sortDate?.getTime() ?? 0)
+  );
+}
+
+export function collectUploadedTimelineEvents(
+  telematicsByEvidenceId: Record<string, ParsedTelematics>
+): TimelineEvent[] {
+  return Object.values(telematicsByEvidenceId).flatMap(
+    (parsed) => parsed.detectedEvents
   );
 }
 
@@ -146,9 +171,9 @@ export function telematicsRowsToMapData(
 }
 
 function shortEventLabel(event: TimelineEvent): string {
-  if (event.markerId === "telem-peak-speed") return "Peak speed";
-  if (event.markerId === "telem-hard-braking") return "Hard braking";
-  if (event.markerId === "telem-vehicle-stopped") return "Stopped";
+  if (event.title.includes("Peak")) return "Peak speed";
+  if (event.title.includes("braking")) return "Hard braking";
+  if (event.title.includes("stopped")) return "Stopped";
   return event.title;
 }
 

@@ -1,0 +1,7 @@
+DRIVER STATEMENT — Unit DV-9031
+Driver: Alicia Gomez
+
+A vehicle cut across lanes ahead near the exit merge.
+I braked hard to increase following distance.
+I felt contact from behind shortly after braking.
+Requires human review against uploaded telemetry and dashcam references.

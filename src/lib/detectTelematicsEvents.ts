@@ -1,11 +1,9 @@
 import { formatDisplayTime } from "@/lib/parseTelematicsCsv";
 import type { ConfidenceLevel, TelematicsRow, TimelineEvent } from "@/types/claim";
 
-const UPLOADED_EVIDENCE_ID = "ev-uploaded-telematics";
-
 export function detectTelematicsEvents(
   rows: TelematicsRow[],
-  evidenceFileId: string = UPLOADED_EVIDENCE_ID
+  evidenceFileId: string
 ): TimelineEvent[] {
   if (rows.length === 0) return [];
 
@@ -20,8 +18,8 @@ export function detectTelematicsEvents(
 
   events.push(
     buildEvent({
-      id: "telem-peak-speed",
-      markerId: "telem-peak-speed",
+      id: `${evidenceFileId}-peak-speed`,
+      markerId: `${evidenceFileId}-peak-speed`,
       rowIndex: peakIndex,
       row: peakRow,
       title: "Peak speed recorded",
@@ -40,8 +38,8 @@ export function detectTelematicsEvents(
   if (hardBraking) {
     events.push(
       buildEvent({
-        id: "telem-hard-braking",
-        markerId: "telem-hard-braking",
+        id: `${evidenceFileId}-hard-braking`,
+        markerId: `${evidenceFileId}-hard-braking`,
         rowIndex: hardBraking.endIndex,
         row: rows[hardBraking.endIndex],
         title: "Hard braking detected",
@@ -62,8 +60,8 @@ export function detectTelematicsEvents(
     const stoppedRow = rows[stoppedIndex];
     events.push(
       buildEvent({
-        id: "telem-vehicle-stopped",
-        markerId: "telem-vehicle-stopped",
+        id: `${evidenceFileId}-vehicle-stopped`,
+        markerId: `${evidenceFileId}-vehicle-stopped`,
         rowIndex: stoppedIndex,
         row: stoppedRow,
         title: "Vehicle stopped",
@@ -80,7 +78,9 @@ export function detectTelematicsEvents(
     );
   }
 
-  return events.sort((a, b) => (a.sortDate?.getTime() ?? 0) - (b.sortDate?.getTime() ?? 0));
+  return events.sort(
+    (a, b) => (a.sortDate?.getTime() ?? 0) - (b.sortDate?.getTime() ?? 0)
+  );
 }
 
 function findHardBrakingEvent(rows: TelematicsRow[]) {
@@ -111,7 +111,8 @@ function findHardBrakingEvent(rows: TelematicsRow[]) {
         fromSpeed: rows[startIndex].speedMph,
         toSpeed: rows[endIndex].speedMph,
         durationSeconds,
-        confidence: durationSeconds <= 1.5 ? ("High" as const) : ("Medium" as const),
+        confidence:
+          durationSeconds <= 1.5 ? ("High" as const) : ("Medium" as const),
       };
 
       if (
@@ -155,8 +156,7 @@ function buildEvent({
   end: Date;
   notes: string;
 }): TimelineEvent {
-  const videoOffsetSeconds =
-    (row.date.getTime() - start.getTime()) / 1000;
+  const videoOffsetSeconds = (row.date.getTime() - start.getTime()) / 1000;
 
   return {
     id,
@@ -182,5 +182,3 @@ function computeVideoProgress(eventDate: Date, start: Date, end: Date): number {
   const elapsed = eventDate.getTime() - start.getTime();
   return Math.max(5, Math.min(95, Math.round((elapsed / total) * 100)));
 }
-
-export { UPLOADED_EVIDENCE_ID };

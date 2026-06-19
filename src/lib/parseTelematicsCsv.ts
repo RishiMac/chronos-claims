@@ -1,7 +1,5 @@
 import type { TelematicsRow } from "@/types/claim";
 
-const REQUIRED_COLUMNS = ["timestamp", "speed_mph"] as const;
-
 export class TelematicsParseError extends Error {
   constructor(message: string) {
     super(message);
@@ -9,25 +7,39 @@ export class TelematicsParseError extends Error {
   }
 }
 
+export interface TelematicsParseResult {
+  fileName: string;
+  rows: TelematicsRow[];
+  uploadedAt: string;
+  timeRange: { start: string; end: string };
+  warnings: string[];
+}
+
+const TIMESTAMP_ALIASES = ["timestamp", "time", "datetime", "date_time", "event_time"];
+const SPEED_ALIASES = ["speed_mph", "speed", "velocity", "spd", "mph"];
+const LAT_ALIASES = ["latitude", "lat"];
+const LON_ALIASES = ["longitude", "lon", "lng", "long"];
+const ACCEL_ALIASES = ["acceleration", "accel", "g_force"];
+const BRAKE_ALIASES = ["brake_status", "braking", "brake"];
+
 export function validateTelematicsColumns(headers: string[]): boolean {
-  const normalized = normalizeHeaders(headers);
-  return REQUIRED_COLUMNS.every((column) => normalized.includes(column));
+  const index = detectColumnIndex(headers);
+  return index.timestamp >= 0 && index.speed >= 0;
 }
 
 export function getMissingTelematicsColumns(headers: string[]): string[] {
-  const normalized = normalizeHeaders(headers);
-  return REQUIRED_COLUMNS.filter((column) => !normalized.includes(column));
+  const index = detectColumnIndex(headers);
+  const missing: string[] = [];
+  if (index.timestamp < 0) missing.push("timestamp");
+  if (index.speed < 0) missing.push("speed");
+  return missing;
 }
 
 export function parseTelematicsCsv(
   csvText: string,
   fileName: string
-): {
-  fileName: string;
-  rows: TelematicsRow[];
-  uploadedAt: string;
-  timeRange: { start: string; end: string };
-} {
+): TelematicsParseResult {
+  const warnings: string[] = [];
   const lines = csvText
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -40,14 +52,31 @@ export function parseTelematicsCsv(
   }
 
   const headers = parseCsvLine(lines[0]);
-  if (!validateTelematicsColumns(headers)) {
-    const missing = getMissingTelematicsColumns(headers);
-    throw new TelematicsParseError(
-      `Missing required columns: ${missing.join(", ")}. Expected at least timestamp and speed_mph.`
-    );
+  const columnIndex = detectColumnIndex(headers);
+
+  if (columnIndex.timestamp < 0) {
+    warnings.push("No timestamp column detected. Timeline events cannot be generated.");
+  }
+  if (columnIndex.speed < 0) {
+    warnings.push("No speed column detected. Speed-based events cannot be generated.");
+  }
+  if (columnIndex.latitude < 0 || columnIndex.longitude < 0) {
+    warnings.push("GPS coordinates not found. Map route will not be available.");
+  }
+  if (columnIndex.acceleration < 0) {
+    warnings.push("Acceleration column not found.");
   }
 
-  const columnIndex = buildColumnIndex(headers);
+  if (columnIndex.timestamp < 0 || columnIndex.speed < 0) {
+    return {
+      fileName,
+      rows: [],
+      uploadedAt: formatUploadedAt(new Date()),
+      timeRange: { start: "—", end: "—" },
+      warnings,
+    };
+  }
+
   const rows: TelematicsRow[] = [];
 
   for (let lineIndex = 1; lineIndex < lines.length; lineIndex++) {
@@ -56,35 +85,32 @@ export function parseTelematicsCsv(
 
     const timestamp = getValue(values, columnIndex.timestamp);
     if (!timestamp) {
-      throw new TelematicsParseError(
-        `Row ${lineIndex + 1} is missing a timestamp value.`
-      );
+      warnings.push(`Row ${lineIndex + 1} skipped: missing timestamp.`);
+      continue;
     }
 
     const date = parseTimestamp(timestamp);
     if (!date) {
-      throw new TelematicsParseError(
-        `Row ${lineIndex + 1} has an invalid timestamp: "${timestamp}".`
-      );
+      warnings.push(`Row ${lineIndex + 1} skipped: invalid timestamp "${timestamp}".`);
+      continue;
     }
 
-    const speedRaw = getValue(values, columnIndex.speed_mph);
-    if (speedRaw === undefined) {
-      throw new TelematicsParseError(
-        `Row ${lineIndex + 1} is missing a speed_mph value.`
-      );
+    const speedRaw = getValue(values, columnIndex.speed);
+    if (speedRaw === undefined || speedRaw.length === 0) {
+      warnings.push(`Row ${lineIndex + 1} skipped: missing speed value.`);
+      continue;
     }
 
     const speedMph = Number(speedRaw);
     if (!Number.isFinite(speedMph)) {
-      throw new TelematicsParseError(
-        `Row ${lineIndex + 1} has an invalid speed value: "${speedRaw}".`
-      );
+      warnings.push(`Row ${lineIndex + 1} skipped: invalid speed "${speedRaw}".`);
+      continue;
     }
 
     const latitudeRaw = getValue(values, columnIndex.latitude);
     const longitudeRaw = getValue(values, columnIndex.longitude);
-    const brakeRaw = getValue(values, columnIndex.brake_status);
+    const accelRaw = getValue(values, columnIndex.acceleration);
+    const brakeRaw = getValue(values, columnIndex.brake);
 
     const latitude =
       latitudeRaw !== undefined && latitudeRaw.length > 0
@@ -94,71 +120,79 @@ export function parseTelematicsCsv(
       longitudeRaw !== undefined && longitudeRaw.length > 0
         ? Number(longitudeRaw)
         : undefined;
+    const acceleration =
+      accelRaw !== undefined && accelRaw.length > 0
+        ? Number(accelRaw)
+        : undefined;
 
     if (latitude !== undefined && !Number.isFinite(latitude)) {
-      throw new TelematicsParseError(
-        `Row ${lineIndex + 1} has an invalid latitude value: "${latitudeRaw}".`
-      );
+      warnings.push(`Row ${lineIndex + 1}: invalid latitude ignored.`);
     }
-
     if (longitude !== undefined && !Number.isFinite(longitude)) {
-      throw new TelematicsParseError(
-        `Row ${lineIndex + 1} has an invalid longitude value: "${longitudeRaw}".`
-      );
+      warnings.push(`Row ${lineIndex + 1}: invalid longitude ignored.`);
     }
 
     const brakeStatus =
       brakeRaw !== undefined ? parseBooleanValue(brakeRaw) : undefined;
 
-    if (brakeRaw !== undefined && brakeRaw.length > 0 && brakeStatus === undefined) {
-      throw new TelematicsParseError(
-        `Row ${lineIndex + 1} has an invalid brake_status value: "${brakeRaw}".`
-      );
-    }
-
     rows.push({
       timestamp,
       date,
       speedMph,
-      latitude,
-      longitude,
+      latitude: Number.isFinite(latitude) ? latitude : undefined,
+      longitude: Number.isFinite(longitude) ? longitude : undefined,
       brakeStatus,
+      acceleration: Number.isFinite(acceleration) ? acceleration : undefined,
     });
   }
 
   if (rows.length === 0) {
-    throw new TelematicsParseError("No valid telematics rows were found in the CSV.");
+    warnings.push("No valid telematics rows were parsed from this CSV.");
+    return {
+      fileName,
+      rows: [],
+      uploadedAt: formatUploadedAt(new Date()),
+      timeRange: { start: "—", end: "—" },
+      warnings,
+    };
   }
 
   rows.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  const uploadedAt = formatUploadedAt(new Date());
-  const timeRange = {
-    start: formatDisplayTime(rows[0].date),
-    end: formatDisplayTime(rows[rows.length - 1].date),
-  };
-
   return {
     fileName,
     rows,
-    uploadedAt,
-    timeRange,
+    uploadedAt: formatUploadedAt(new Date()),
+    timeRange: {
+      start: formatDisplayTime(rows[0].date),
+      end: formatDisplayTime(rows[rows.length - 1].date),
+    },
+    warnings,
   };
+}
+
+function detectColumnIndex(headers: string[]) {
+  const normalized = normalizeHeaders(headers);
+  return {
+    timestamp: findColumn(normalized, TIMESTAMP_ALIASES),
+    speed: findColumn(normalized, SPEED_ALIASES),
+    latitude: findColumn(normalized, LAT_ALIASES),
+    longitude: findColumn(normalized, LON_ALIASES),
+    acceleration: findColumn(normalized, ACCEL_ALIASES),
+    brake: findColumn(normalized, BRAKE_ALIASES),
+  };
+}
+
+function findColumn(normalized: string[], aliases: string[]): number {
+  for (const alias of aliases) {
+    const index = normalized.indexOf(alias);
+    if (index >= 0) return index;
+  }
+  return -1;
 }
 
 function normalizeHeaders(headers: string[]): string[] {
   return headers.map((header) => header.trim().toLowerCase());
-}
-
-function buildColumnIndex(headers: string[]) {
-  const normalized = normalizeHeaders(headers);
-  return {
-    timestamp: normalized.indexOf("timestamp"),
-    speed_mph: normalized.indexOf("speed_mph"),
-    latitude: normalized.indexOf("latitude"),
-    longitude: normalized.indexOf("longitude"),
-    brake_status: normalized.indexOf("brake_status"),
-  };
 }
 
 function getValue(values: string[], index: number): string | undefined {

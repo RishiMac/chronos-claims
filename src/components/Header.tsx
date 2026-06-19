@@ -1,15 +1,24 @@
-import { Calendar, MapPin, Truck } from "lucide-react";
+import { Calendar, ChevronDown, MapPin, Truck, User } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { sampleClaims } from "@/data/sampleClaims";
+import { cn } from "@/lib/utils";
 import type { Claim } from "@/types/claim";
 
 interface HeaderProps {
   claim: Claim;
+  activeClaimId: string;
+  onClaimChange: (claimId: string) => void;
   onShareClick: () => void;
 }
 
-export function Header({ claim, onShareClick }: HeaderProps) {
+export function Header({
+  claim,
+  activeClaimId,
+  onClaimChange,
+  onShareClick,
+}: HeaderProps) {
   return (
     <header className="shrink-0 border-b border-border bg-card">
       <div className="flex flex-col gap-3 px-6 py-3.5 lg:flex-row lg:items-center lg:justify-between">
@@ -24,13 +33,34 @@ export function Header({ claim, onShareClick }: HeaderProps) {
             >
               {claim.status}
             </Badge>
+            <div className="relative">
+              <label className="sr-only" htmlFor="claim-switcher">
+                Select sample claim
+              </label>
+              <select
+                id="claim-switcher"
+                value={activeClaimId}
+                onChange={(event) => onClaimChange(event.target.value)}
+                className={cn(
+                  "h-7 appearance-none rounded-md border border-slate-200 bg-white pl-2.5 pr-7 text-[11px] font-medium text-slate-700",
+                  "outline-none transition-colors hover:border-slate-300 focus:border-slate-400"
+                )}
+              >
+                {sampleClaims.map((sampleClaim) => (
+                  <option key={sampleClaim.id} value={sampleClaim.id}>
+                    {sampleClaim.id} — {sampleClaim.shortLabel}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-slate-400" />
+            </div>
           </div>
           <div>
             <h1 className="text-lg font-medium tracking-tight text-slate-900">
               {claim.title}
             </h1>
             <p className="mt-0.5 text-[13px] text-slate-500">
-              Stop pausing videos and typing timestamps into Excel.
+              {claim.scenarioSummary}
             </p>
             <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
               Synchronized investigation workspace — organizes evidence to
@@ -45,6 +75,10 @@ export function Header({ claim, onShareClick }: HeaderProps) {
             <span className="inline-flex items-center gap-1.5">
               <Truck className="size-3.5 text-slate-400" />
               {claim.vehicleId}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <User className="size-3.5 text-slate-400" />
+              {claim.driverName}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="size-3.5 text-slate-400" />

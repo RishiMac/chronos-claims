@@ -8,7 +8,6 @@ import { formatSeconds } from "@/lib/eventUtils";
 import { cn } from "@/lib/utils";
 import type { TimelineEvent } from "@/types/claim";
 
-const DEMO_VIDEO_SRC = "/demo-dashcam.mp4";
 const SCRUB_HIT_HEIGHT_PX = 28;
 
 interface VideoViewerProps {
@@ -17,6 +16,9 @@ interface VideoViewerProps {
   duration: number;
   isPlaying: boolean;
   videoSourceLoaded: boolean;
+  videoSrc: string;
+  videoFileName: string;
+  isUploadedVideo: boolean;
   onPlayPause: () => void;
   onTimeUpdate: (time: number) => void;
   onVideoLoaded: (duration: number) => void;
@@ -31,6 +33,9 @@ export function VideoViewer({
   duration,
   isPlaying,
   videoSourceLoaded,
+  videoSrc,
+  videoFileName,
+  isUploadedVideo,
   onPlayPause,
   onTimeUpdate,
   onVideoLoaded,
@@ -113,6 +118,12 @@ export function VideoViewer({
 
   useEffect(() => {
     const video = videoRef.current;
+    if (!video) return;
+    video.load();
+  }, [videoSrc]);
+
+  useEffect(() => {
+    const video = videoRef.current;
     if (!video || !videoSourceLoaded || isDragging) return;
 
     if (Math.abs(video.currentTime - currentTime) > 0.35) {
@@ -148,25 +159,30 @@ export function VideoViewer({
       ? formatSeconds(currentTime)
       : selectedEvent.timestamp;
 
+  const statusLabel = videoSourceLoaded
+    ? isUploadedVideo
+      ? "Uploaded video loaded"
+      : "Demo video loaded"
+    : "Synchronized preview mode";
+
   return (
     <Card className="overflow-hidden border-slate-200 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-3">
         <CardTitle className="text-[13px] font-medium text-slate-900">
           Dashcam Video
         </CardTitle>
-        <span className="text-xs text-muted-foreground">
-          {videoSourceLoaded ? "Demo video loaded" : "Synchronized preview mode"}
-        </span>
+        <span className="text-xs text-muted-foreground">{statusLabel}</span>
       </CardHeader>
       <CardContent className="p-0">
         <div className="relative aspect-video bg-slate-900">
           <video
             ref={videoRef}
+            key={videoSrc}
             className={cn(
               "size-full object-cover",
               !videoSourceLoaded && "hidden"
             )}
-            src={DEMO_VIDEO_SRC}
+            src={videoSrc}
             preload="metadata"
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
@@ -188,7 +204,7 @@ export function VideoViewer({
             {overlayTimestamp}
           </div>
           <div className="absolute right-3 bottom-3 rounded bg-black/60 px-2 py-1 text-xs text-slate-300">
-            dashcam_front.mp4
+            {videoFileName}
           </div>
         </div>
 
@@ -277,3 +293,5 @@ export function VideoViewer({
     </Card>
   );
 }
+
+export const DEMO_VIDEO_SRC = "/demo-dashcam.mp4";
