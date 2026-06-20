@@ -43,6 +43,27 @@ export function formatSeconds(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+/** Video-relative label for dashcam sync (e.g. 19.219 → 00:19.219). */
+export function formatVideoOffsetLabel(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds - minutes * 60;
+  return `${minutes.toString().padStart(2, "0")}:${remainder.toFixed(3).padStart(6, "0")}`;
+}
+
+export function getTimelineEventDisplayTimestamp(
+  event: TimelineEvent,
+  evidenceFiles: EvidenceFile[],
+  useVideoRelativeLabels: boolean
+): string {
+  if (
+    useVideoRelativeLabels &&
+    eventLinksVideoEvidence(event, evidenceFiles)
+  ) {
+    return formatVideoOffsetLabel(event.videoOffsetSeconds);
+  }
+  return event.timestamp;
+}
+
 export function formatDurationLabel(seconds: number): string {
   if (seconds < 60) return `${seconds} sec`;
   const mins = Math.floor(seconds / 60);

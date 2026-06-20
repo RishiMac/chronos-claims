@@ -9,7 +9,6 @@ export const REAL_DEMO_VIDEO_DURATION_SECONDS = 40;
 export const REAL_DEMO_VIDEO_ALERT_SECONDS = 19.219;
 export const REAL_DEMO_VIDEO_COLLISION_SECONDS = 20.287;
 export const REAL_DEMO_VIDEO_TRAVEL_SECONDS = 10;
-export const REAL_DEMO_VIDEO_PEAK_SPEED_SECONDS = 12;
 export const REAL_DEMO_VIDEO_HARD_BRAKE_SECONDS = 18.5;
 export const REAL_DEMO_VIDEO_STOP_SECONDS = 22;
 
@@ -194,7 +193,7 @@ export const realDemoClaim: Claim = {
       timestamp: "6:41:00 PM",
       title: "Vehicle traveling normally",
       description:
-        "Uploaded telemetry indicates steady travel near 36–40 mph prior to the slowing sequence.",
+        "Uploaded telemetry indicates steady travel near 36–40 mph prior to the slowing sequence, with peak recorded speed near 40 mph.",
       confidence: "High",
       severity: "info",
       linkedEvidenceIds: [REAL_DEMO_VIDEO_EVIDENCE_ID, "ev-real-telematics"],
@@ -202,20 +201,6 @@ export const realDemoClaim: Claim = {
       markerId: "travel",
       videoProgress: 25,
       videoOffsetSeconds: REAL_DEMO_VIDEO_TRAVEL_SECONDS,
-    },
-    {
-      id: "evt-real-peak",
-      timestamp: "6:41:10 PM",
-      title: "Peak speed recorded",
-      description:
-        "Telemetry indicates peak recorded speed near 40 mph during the pre-event travel window.",
-      confidence: "High",
-      severity: "info",
-      linkedEvidenceIds: ["ev-real-telematics", REAL_DEMO_VIDEO_EVIDENCE_ID],
-      notes: "Peak speed row documented in Samsara export for human review.",
-      markerId: "peak-speed",
-      videoProgress: 30,
-      videoOffsetSeconds: REAL_DEMO_VIDEO_PEAK_SPEED_SECONDS,
     },
     {
       id: "evt-real-brake",
@@ -276,6 +261,7 @@ export const realDemoClaim: Claim = {
     {
       id: "evt-real-damage",
       timestamp: "Post-incident",
+      sectionDividerLabel: "Post-Incident Documentation",
       title: "Damage documented",
       description:
         "Rear damage photograph available for visual review alongside other evidence references.",

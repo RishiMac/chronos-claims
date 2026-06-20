@@ -49,6 +49,7 @@ interface RightInvestigationPanelProps {
   selectedEventHiddenByFilter: boolean;
   isVideoPlaying: boolean;
   playbackEvent: TimelineEvent | null;
+  claimId?: string;
   onCopySummary?: () => void;
   onPreviewEvidence?: (evidenceId: string) => void;
   onOpenEvidenceReference?: (reference: EvidenceReference) => void;
@@ -86,6 +87,7 @@ export function RightInvestigationPanel({
   selectedEventHiddenByFilter,
   isVideoPlaying,
   playbackEvent,
+  claimId,
   onCopySummary,
   onPreviewEvidence,
   onOpenEvidenceReference,
@@ -169,6 +171,7 @@ export function RightInvestigationPanel({
           selectedEventHiddenByFilter={selectedEventHiddenByFilter}
           isVideoPlaying={isVideoPlaying}
           playbackEvent={playbackEvent}
+          claimId={claimId}
           onPreviewEvidence={onPreviewEvidence}
         />
       </div>

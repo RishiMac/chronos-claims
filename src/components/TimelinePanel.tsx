@@ -9,8 +9,10 @@ import {
   eventLinksVideoEvidence,
   filterTimelineEvents,
   formatDurationLabel,
+  getTimelineEventDisplayTimestamp,
   severityStyles,
 } from "@/lib/eventUtils";
+import { REAL_DEMO_CLAIM_ID } from "@/data/realDemoClaim";
 import {
   getAssigneeInitials,
   reviewStatusStyles,
@@ -48,6 +50,7 @@ interface TimelinePanelProps {
   selectedEventHiddenByFilter: boolean;
   isVideoPlaying: boolean;
   playbackEvent: TimelineEvent | null;
+  claimId?: string;
   onPreviewEvidence?: (evidenceId: string) => void;
 }
 
@@ -108,6 +111,7 @@ export function TimelinePanel({
   selectedEventHiddenByFilter,
   isVideoPlaying,
   playbackEvent,
+  claimId,
   onPreviewEvidence,
 }: TimelinePanelProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -119,6 +123,7 @@ export function TimelinePanel({
   const previousSelectedRef = useRef(selectedEventId);
 
   const filtersExpanded = filtersManuallyExpanded ?? !isVideoPlaying;
+  const useVideoRelativeLabels = claimId === REAL_DEMO_CLAIM_ID;
 
   const filteredEvents = filterTimelineEvents(
     events,
@@ -201,7 +206,12 @@ export function TimelinePanel({
                   Currently playing:
                 </p>
                 <p className="text-[11px] text-sky-900">
-                  {videoPlaybackEvent.timestamp} — {videoPlaybackEvent.title}
+                  {getTimelineEventDisplayTimestamp(
+                    videoPlaybackEvent,
+                    evidenceFiles,
+                    useVideoRelativeLabels
+                  )}{" "}
+                  — {videoPlaybackEvent.title}
                 </p>
               </div>
             )}
@@ -278,6 +288,14 @@ export function TimelinePanel({
             <div className="space-y-0.5">
               {filteredEvents.map((event) => {
                 const isSelected = event.id === selectedEventId;
+                const isRealDemoCollision =
+                  claimId === REAL_DEMO_CLAIM_ID &&
+                  event.id === "evt-real-collision";
+                const displayTimestamp = getTimelineEventDisplayTimestamp(
+                  event,
+                  evidenceFiles,
+                  useVideoRelativeLabels
+                );
                 const reviewStatus = event.reviewStatus ?? "unreviewed";
                 const flagCount = event.flags?.length ?? 0;
                 const commentCount = event.commentCount ?? 0;
@@ -286,7 +304,19 @@ export function TimelinePanel({
                   .filter(Boolean) as EvidenceFile[];
 
                 return (
-                  <div key={event.id} className="relative">
+                  <div key={event.id}>
+                    {event.sectionDividerLabel && (
+                      <div
+                        className="relative mb-1 border-t border-dashed border-slate-200 pt-2 pl-2"
+                        role="separator"
+                        aria-label={event.sectionDividerLabel}
+                      >
+                        <p className="text-[10px] font-medium tracking-wide text-slate-500 uppercase">
+                          {event.sectionDividerLabel}
+                        </p>
+                      </div>
+                    )}
+                    <div className="relative">
                     <div
                       ref={(node) => {
                         if (node) {
@@ -313,17 +343,31 @@ export function TimelinePanel({
                       onMouseLeave={() => setHoveredEventId(null)}
                       className={cn(
                         "relative w-full cursor-pointer rounded-md border px-1.5 py-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/80",
-                        isSelected
-                          ? "border-amber-300/70 bg-amber-50/70 ring-1 ring-amber-200/60"
-                          : "border-transparent hover:border-slate-200 hover:bg-slate-50/80"
+                        isRealDemoCollision &&
+                          !isSelected &&
+                          "border-red-200 bg-red-50/70",
+                        isRealDemoCollision &&
+                          isSelected &&
+                          "border-red-400 bg-red-50 ring-1 ring-red-300",
+                        !isRealDemoCollision &&
+                          isSelected &&
+                          "border-amber-300/70 bg-amber-50/70 ring-1 ring-amber-200/60",
+                        !isRealDemoCollision &&
+                          !isSelected &&
+                          "border-transparent hover:border-slate-200 hover:bg-slate-50/80"
                       )}
                     >
                       <div
                         className={cn(
                           "absolute top-[9px] -left-[4px] size-2 rounded-full border border-white transition-colors",
-                          isSelected
-                            ? "bg-amber-500 ring-2 ring-amber-200/80"
-                            : severityStyles[event.severity].dot
+                          isRealDemoCollision &&
+                            "bg-red-600 ring-2 ring-red-200",
+                          !isRealDemoCollision &&
+                            isSelected &&
+                            "bg-amber-500 ring-2 ring-amber-200/80",
+                          !isRealDemoCollision &&
+                            !isSelected &&
+                            severityStyles[event.severity].dot
                         )}
                       />
                       <div className="pl-2">
@@ -331,17 +375,23 @@ export function TimelinePanel({
                           <p
                             className={cn(
                               "shrink-0 font-mono text-[10px] tabular-nums",
-                              isSelected
-                                ? "text-amber-800/80"
-                                : "text-slate-500"
+                              isRealDemoCollision
+                                ? "font-medium text-red-800"
+                                : isSelected
+                                  ? "text-amber-800/80"
+                                  : "text-slate-500"
                             )}
                           >
-                            {event.timestamp}
+                            {displayTimestamp}
                           </p>
                           <p
                             className={cn(
                               "truncate text-[12px] font-medium",
-                              isSelected ? "text-amber-950" : "text-slate-900"
+                              isRealDemoCollision
+                                ? "text-red-950"
+                                : isSelected
+                                  ? "text-amber-950"
+                                  : "text-slate-900"
                             )}
                           >
                             {event.title}
@@ -352,10 +402,14 @@ export function TimelinePanel({
                             variant="outline"
                             className={cn(
                               "h-3.5 px-1 text-[8px] font-normal leading-none",
-                              severityStyles[event.severity].badge
+                              isRealDemoCollision
+                                ? "border-red-300 bg-red-100 text-red-800"
+                                : severityStyles[event.severity].badge
                             )}
                           >
-                            {severityStyles[event.severity].label}
+                            {isRealDemoCollision
+                              ? "Critical"
+                              : severityStyles[event.severity].label}
                           </Badge>
                           <Badge
                             variant="outline"
@@ -447,8 +501,10 @@ export function TimelinePanel({
                       <EventHoverPreview
                         event={hoveredEvent}
                         linkedFiles={linkedFiles}
+                        displayTimestamp={displayTimestamp}
                       />
                     )}
+                    </div>
                   </div>
                 );
               })}
@@ -463,13 +519,15 @@ export function TimelinePanel({
 function EventHoverPreview({
   event,
   linkedFiles,
+  displayTimestamp,
 }: {
   event: TimelineEvent;
   linkedFiles: EvidenceFile[];
+  displayTimestamp: string;
 }) {
   return (
     <div className="pointer-events-none absolute top-0 right-full z-20 mr-2 w-52 rounded-md border border-slate-200 bg-white p-2 shadow-lg">
-      <p className="font-mono text-[10px] text-slate-500">{event.timestamp}</p>
+      <p className="font-mono text-[10px] text-slate-500">{displayTimestamp}</p>
       <p className="mt-0.5 text-[11px] font-medium text-slate-900">
         {event.title}
       </p>

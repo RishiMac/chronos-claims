@@ -1,3 +1,4 @@
+import { REAL_DEMO_CLAIM_ID } from "@/data/realDemoClaim";
 import { aiTimelineEventsToTimelineEvents } from "@/lib/ai/aiTimelineBridge";
 import {
   hasActiveAiContent,
@@ -162,7 +163,7 @@ function resolveClaimTimelineEvents(claimId: string): TimelineEvent[] {
     workspace.telematicsByEvidenceId
   );
   let events =
-    uploadedEvents.length > 0
+    uploadedEvents.length > 0 && claimId !== REAL_DEMO_CLAIM_ID
       ? mergeTimelineEvents(stored.claim.timelineEvents, uploadedEvents)
       : stored.claim.timelineEvents;
 

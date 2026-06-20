@@ -85,6 +85,8 @@ export interface TimelineEvent {
   isBookmarked?: boolean;
   flags?: EventFlagType[];
   commentCount?: number;
+  /** When set, renders a section divider immediately before this event in the timeline list. */
+  sectionDividerLabel?: string;
 }
 
 export interface TelematicsRow {

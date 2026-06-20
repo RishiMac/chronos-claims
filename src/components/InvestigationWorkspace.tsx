@@ -49,7 +49,6 @@ import {
   computeInvestigationStats,
   computeVideoDuration,
   filterTimelineEvents,
-  findActiveEventForPlayback,
   findActiveVideoSyncedEventForPlayback,
   eventLinksVideoEvidence,
 } from "@/lib/eventUtils";
@@ -626,7 +625,11 @@ export function InvestigationWorkspace() {
     playbackIntervalRef.current = window.setInterval(() => {
       setCurrentVideoTime((previous) => {
         const next = Math.min(videoDuration, previous + 0.25);
-        const activeEvent = findActiveEventForPlayback(timelineEvents, next);
+        const activeEvent = findActiveVideoSyncedEventForPlayback(
+          timelineEvents,
+          next,
+          evidenceFiles
+        );
         if (activeEvent) {
           setSelectedEventId(activeEvent.id);
         }
@@ -643,7 +646,14 @@ export function InvestigationWorkspace() {
         playbackIntervalRef.current = null;
       }
     };
-  }, [isVideoPlaying, videoSourceLoaded, isScrubbing, videoDuration, timelineEvents]);
+  }, [
+    isVideoPlaying,
+    videoSourceLoaded,
+    isScrubbing,
+    videoDuration,
+    timelineEvents,
+    evidenceFiles,
+  ]);
 
   const handleSelectEvent = useCallback(
     (eventId: string) => {
@@ -716,23 +726,31 @@ export function InvestigationWorkspace() {
   const handleVideoTimeUpdate = useCallback(
     (time: number) => {
       setCurrentVideoTime(time);
-      const activeEvent = findActiveEventForPlayback(timelineEvents, time);
+      const activeEvent = findActiveVideoSyncedEventForPlayback(
+        timelineEvents,
+        time,
+        evidenceFiles
+      );
       if (activeEvent && isVideoPlaying) {
         setSelectedEventId(activeEvent.id);
       }
     },
-    [timelineEvents, isVideoPlaying]
+    [timelineEvents, isVideoPlaying, evidenceFiles]
   );
 
   const handleVideoSeek = useCallback(
     (time: number) => {
       setCurrentVideoTime(time);
-      const activeEvent = findActiveEventForPlayback(timelineEvents, time);
+      const activeEvent = findActiveVideoSyncedEventForPlayback(
+        timelineEvents,
+        time,
+        evidenceFiles
+      );
       if (activeEvent) {
         setSelectedEventId(activeEvent.id);
       }
     },
-    [timelineEvents]
+    [timelineEvents, evidenceFiles]
   );
 
   const handleSeekBack = useCallback(() => {
@@ -1837,6 +1855,7 @@ export function InvestigationWorkspace() {
           selectedEventHiddenByFilter={selectedEventHiddenByFilter}
           isVideoPlaying={isVideoPlaying}
           playbackEvent={playbackEvent}
+          claimId={activeClaimId}
           onCopySummary={handleCopySummary}
           onPreviewEvidence={handlePreviewEvidence}
           onOpenEvidenceReference={handleOpenEvidenceReference}
