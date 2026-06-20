@@ -1,0 +1,5 @@
+node_modules
+.venv
+.next
+mygeotab-api-adapter/.git
+data/photos/peltarion-car-damage

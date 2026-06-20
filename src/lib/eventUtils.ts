@@ -189,6 +189,16 @@ export function computeInvestigationStats(
   };
 }
 
+export function eventLinksVideoEvidence(
+  event: TimelineEvent,
+  evidenceFiles: EvidenceFile[]
+): boolean {
+  return event.linkedEvidenceIds.some((id) => {
+    const file = evidenceFiles.find((item) => item.id === id);
+    return file?.fileType === "video";
+  });
+}
+
 export function findActiveEventForPlayback(
   events: TimelineEvent[],
   currentTime: number
@@ -209,6 +219,17 @@ export function findActiveEventForPlayback(
   }
 
   return active;
+}
+
+export function findActiveVideoSyncedEventForPlayback(
+  events: TimelineEvent[],
+  currentTime: number,
+  evidenceFiles: EvidenceFile[]
+): TimelineEvent | null {
+  const videoSyncedEvents = events.filter((event) =>
+    eventLinksVideoEvidence(event, evidenceFiles)
+  );
+  return findActiveEventForPlayback(videoSyncedEvents, currentTime);
 }
 
 export function computeVideoDuration(

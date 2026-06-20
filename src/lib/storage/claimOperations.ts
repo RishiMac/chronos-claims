@@ -1,4 +1,14 @@
 import { sampleClaims } from "@/data/sampleClaims";
+import {
+  REAL_DEMO_CLAIM_ID,
+  REAL_DEMO_VIDEO_EVIDENCE_ID,
+} from "@/data/realDemoClaim";
+import {
+  getRealDemoParsedTelematics,
+  getRealDemoTelematicsSerialized,
+  REAL_DEMO_TELEMATICS_EVIDENCE_ID,
+} from "@/data/realDemoClaimTelemetry";
+import { enrichTelematicsEvidenceFile } from "@/lib/telematicsTransforms";
 import type { Claim } from "@/types/claim";
 import type { StoredInvestigationNote } from "@/types/investigation-note";
 import { createEmptyCollaboration } from "@/types/collaboration";
@@ -178,20 +188,45 @@ export function duplicateStoredClaim(
 }
 
 export function buildSampleStoredClaims(): StoredClaim[] {
-  return sampleClaims.map((claim) => ({
-    claim,
-    evidenceFiles: claim.evidenceFiles,
-    telematics: [],
-    selectedEventId: claim.defaultSelectedEventId,
-    selectedEvidenceId: claim.defaultSelectedEvidenceId,
-    activeVideoEvidenceId: null,
-    sampleEvidenceLoaded: false,
-    notesDraft: "",
-    sourceFilter: "all",
-    severityFilter: "all",
-    searchQuery: "",
-    isSample: true,
-  }));
+  return sampleClaims.map((claim) => {
+    if (claim.id === REAL_DEMO_CLAIM_ID) {
+      const parsed = getRealDemoParsedTelematics();
+      const evidenceFiles = claim.evidenceFiles.map((file) =>
+        file.id === REAL_DEMO_TELEMATICS_EVIDENCE_ID
+          ? enrichTelematicsEvidenceFile(file, parsed)
+          : file
+      );
+      return {
+        claim,
+        evidenceFiles,
+        telematics: getRealDemoTelematicsSerialized(),
+        selectedEventId: claim.defaultSelectedEventId,
+        selectedEvidenceId: claim.defaultSelectedEvidenceId,
+        activeVideoEvidenceId: REAL_DEMO_VIDEO_EVIDENCE_ID,
+        sampleEvidenceLoaded: true,
+        notesDraft: "",
+        sourceFilter: "all",
+        severityFilter: "all",
+        searchQuery: "",
+        isSample: true,
+      };
+    }
+
+    return {
+      claim,
+      evidenceFiles: claim.evidenceFiles,
+      telematics: [],
+      selectedEventId: claim.defaultSelectedEventId,
+      selectedEvidenceId: claim.defaultSelectedEvidenceId,
+      activeVideoEvidenceId: null,
+      sampleEvidenceLoaded: false,
+      notesDraft: "",
+      sourceFilter: "all",
+      severityFilter: "all",
+      searchQuery: "",
+      isSample: true,
+    };
+  });
 }
 
 export function buildInitialNotesFromSampleClaims(): StoredInvestigationNote[] {

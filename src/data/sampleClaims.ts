@@ -1,4 +1,5 @@
 import type { Claim, EvidenceFile } from "@/types/claim";
+import { realDemoClaim } from "@/data/realDemoClaim";
 
 export const canonicalSampleEvidenceSourceId = "CC-2026-001";
 
@@ -157,6 +158,7 @@ function buildEvidenceFiles(claimId: string): EvidenceFile[] {
 }
 
 export const sampleClaims: Claim[] = [
+  realDemoClaim,
   {
     id: "CC-2026-001",
     shortLabel: "Rear-End Collision",

@@ -1,4 +1,5 @@
 node_modules/
+.venv/
 .next/
 out/
 dist/
@@ -28,3 +29,7 @@ pnpm-debug.log*
 # Local upload scratch (sample assets under public/ remain committed)
 uploads/
 tmp/
+
+# Local-only raw data clones (curated assets under data/demo-claims/ remain tracked)
+data/photos/peltarion-car-damage/
+mygeotab-api-adapter/.git/

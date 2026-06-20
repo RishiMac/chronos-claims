@@ -10,6 +10,10 @@ import { SharePackageModal } from "@/components/SharePackageModal";
 import { DEMO_VIDEO_SRC } from "@/components/VideoViewer";
 import { getDefaultClaim } from "@/data/sampleClaims";
 import {
+  REAL_DEMO_CLAIM_ID,
+  REAL_DEMO_VIDEO_DURATION_SECONDS,
+} from "@/data/realDemoClaim";
+import {
   buildClearedAiAnalysis,
   buildStoredAiAnalysis,
   hasActiveAiContent,
@@ -46,6 +50,8 @@ import {
   computeVideoDuration,
   filterTimelineEvents,
   findActiveEventForPlayback,
+  findActiveVideoSyncedEventForPlayback,
+  eventLinksVideoEvidence,
 } from "@/lib/eventUtils";
 import { useInvestigationKeyboard } from "@/hooks/useInvestigationKeyboard";
 import {
@@ -407,7 +413,10 @@ export function InvestigationWorkspace() {
   const timelineEvents = useMemo(() => {
     let events = activeClaim.timelineEvents;
     const uploadedEvents = collectUploadedTimelineEvents(telematicsByEvidenceId);
-    if (uploadedEvents.length > 0) {
+    if (
+      uploadedEvents.length > 0 &&
+      activeClaim.id !== REAL_DEMO_CLAIM_ID
+    ) {
       events = mergeTimelineEvents(events, uploadedEvents);
     }
     if (
@@ -421,7 +430,13 @@ export function InvestigationWorkspace() {
       );
     }
     return enrichTimelineEventsWithCollaboration(events, eventCollaboration);
-  }, [telematicsByEvidenceId, activeClaim.timelineEvents, aiAnalysis, eventCollaboration]);
+  }, [
+    telematicsByEvidenceId,
+    activeClaim.id,
+    activeClaim.timelineEvents,
+    aiAnalysis,
+    eventCollaboration,
+  ]);
 
   const speedData = useMemo(() => {
     if (!activeTelematics) return activeClaim.speedData;
@@ -464,6 +479,11 @@ export function InvestigationWorkspace() {
       if (selectedVideo) return selectedVideo;
     }
 
+    const publicVideo = evidenceFiles.find(
+      (file) => file.fileType === "video" && file.metadata.publicUrl
+    );
+    if (publicVideo) return publicVideo;
+
     const uploadedVideos = evidenceFiles.filter(
       (file) => file.fileType === "video" && file.objectUrl
     );
@@ -476,6 +496,14 @@ export function InvestigationWorkspace() {
         src: activeVideoFile.objectUrl,
         fileName: activeVideoFile.name,
         isUploaded: true,
+      };
+    }
+
+    if (activeVideoFile?.metadata.publicUrl) {
+      return {
+        src: activeVideoFile.metadata.publicUrl,
+        fileName: activeVideoFile.name,
+        isUploaded: false,
       };
     }
 
@@ -533,11 +561,26 @@ export function InvestigationWorkspace() {
 
   const playbackEvent = useMemo(() => {
     if (!isVideoPlaying) return null;
-    return (
-      findActiveEventForPlayback(timelineEvents, currentVideoTime) ??
-      selectedEvent
+    const activeVideoEvent = findActiveVideoSyncedEventForPlayback(
+      timelineEvents,
+      currentVideoTime,
+      evidenceFiles
     );
-  }, [isVideoPlaying, timelineEvents, currentVideoTime, selectedEvent]);
+    if (activeVideoEvent) return activeVideoEvent;
+    if (
+      selectedEvent &&
+      eventLinksVideoEvidence(selectedEvent, evidenceFiles)
+    ) {
+      return selectedEvent;
+    }
+    return null;
+  }, [
+    isVideoPlaying,
+    timelineEvents,
+    currentVideoTime,
+    selectedEvent,
+    evidenceFiles,
+  ]);
 
   const currentTimestamp =
     selectedEvent?.timestamp ??
@@ -546,9 +589,13 @@ export function InvestigationWorkspace() {
 
   useEffect(() => {
     queueMicrotask(() => {
+      if (activeClaim.id === REAL_DEMO_CLAIM_ID) {
+        setVideoDuration(REAL_DEMO_VIDEO_DURATION_SECONDS);
+        return;
+      }
       setVideoDuration(computeVideoDuration(timelineEvents, activeTelematics));
     });
-  }, [timelineEvents, activeTelematics]);
+  }, [activeClaim.id, timelineEvents, activeTelematics]);
 
   const resetVideoForSourceChange = useCallback(() => {
     setVideoSourceLoaded(false);
@@ -603,11 +650,17 @@ export function InvestigationWorkspace() {
       const event = timelineEvents.find((item) => item.id === eventId);
       setSelectedEventId(eventId);
       if (event) {
-        setCurrentVideoTime(event.videoOffsetSeconds);
+        const seeksVideo = event.linkedEvidenceIds.some((id) => {
+          const file = evidenceFiles.find((item) => item.id === id);
+          return file?.fileType === "video";
+        });
+        if (seeksVideo) {
+          setCurrentVideoTime(event.videoOffsetSeconds);
+        }
         logActivity("opened_timeline_event", `Viewed event: ${event.title}`);
       }
     },
-    [timelineEvents, logActivity]
+    [timelineEvents, evidenceFiles, logActivity]
   );
 
   const handleSelectEvidence = useCallback(

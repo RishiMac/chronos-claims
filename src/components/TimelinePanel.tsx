@@ -1,11 +1,12 @@
 "use client";
 
-import { Bookmark, Flag, MessageSquare, Search } from "lucide-react";
+import { Bookmark, ChevronDown, ChevronUp, Flag, MessageSquare, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { EvidenceSourceChip } from "@/components/EvidenceSourceChip";
 import { Badge } from "@/components/ui/badge";
 import {
+  eventLinksVideoEvidence,
   filterTimelineEvents,
   formatDurationLabel,
   severityStyles,
@@ -112,7 +113,12 @@ export function TimelinePanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const eventRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
+  const [filtersManuallyExpanded, setFiltersManuallyExpanded] = useState<
+    boolean | null
+  >(null);
   const previousSelectedRef = useRef(selectedEventId);
+
+  const filtersExpanded = filtersManuallyExpanded ?? !isVideoPlaying;
 
   const filteredEvents = filterTimelineEvents(
     events,
@@ -124,6 +130,15 @@ export function TimelinePanel({
     bookmarkFilter,
     flagFilter
   );
+
+  const videoPlaybackEvent =
+    playbackEvent && eventLinksVideoEvidence(playbackEvent, evidenceFiles)
+      ? playbackEvent
+      : null;
+
+  const handleToggleFilters = () => {
+    setFiltersManuallyExpanded(!filtersExpanded);
+  };
 
   useEffect(() => {
     if (!isVideoPlaying || selectedEventId === previousSelectedRef.current) {
@@ -144,86 +159,111 @@ export function TimelinePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border px-3 py-2.5">
+      <div className="shrink-0 border-b border-border px-3 py-2">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[13px] font-medium text-slate-900">
             Event Timeline
           </h2>
-          <span className="text-[11px] text-slate-500">
-            Events: {stats.eventCount}
-          </span>
-        </div>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
-          Click an event to synchronize the investigation view
-        </p>
-
-        {isVideoPlaying && playbackEvent && (
-          <div className="mt-2 rounded-md border border-sky-200 bg-sky-50/80 px-2 py-1.5">
-            <p className="text-[10px] font-medium text-sky-700">
-              Currently playing:
-            </p>
-            <p className="text-[11px] text-sky-900">
-              {playbackEvent.timestamp} — {playbackEvent.title}
-            </p>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-500">
+              Events: {stats.eventCount}
+            </span>
+            <button
+              type="button"
+              onClick={handleToggleFilters}
+              className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+              aria-expanded={filtersExpanded}
+            >
+              {filtersExpanded ? (
+                <>
+                  <ChevronUp className="size-3" />
+                  Hide filters
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="size-3" />
+                  Show filters
+                </>
+              )}
+            </button>
           </div>
-        )}
-
-        <div className="relative mt-2">
-          <Search className="pointer-events-none absolute top-1/2 left-2 size-3 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            placeholder="Search events or sources..."
-            className="h-7 w-full rounded-md border border-slate-200 bg-white pr-2 pl-7 text-[11px] text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-slate-300"
-          />
         </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-[10px] text-slate-600">
-          <span>Sources: {stats.sourceCount}</span>
-          <span>Duration: {formatDurationLabel(stats.durationSeconds)}</span>
-          <span className="col-span-2">
-            Peak speed: {stats.peakSpeedMph} mph
-          </span>
-        </div>
+        {filtersExpanded && (
+          <>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Click an event to synchronize the investigation view
+            </p>
 
-        <div className="mt-2 space-y-1.5">
-          <FilterRow
-            label="Source"
-            value={sourceFilter}
-            options={sourceOptions}
-            onChange={onSourceFilterChange}
-          />
-          <FilterRow
-            label="Severity"
-            value={severityFilter}
-            options={severityOptions}
-            onChange={onSeverityFilterChange}
-          />
-          <FilterRow
-            label="Review"
-            value={reviewStatusFilter}
-            options={reviewStatusOptions}
-            onChange={onReviewStatusFilterChange}
-          />
-          <FilterRow
-            label="Bookmark"
-            value={bookmarkFilter}
-            options={bookmarkOptions}
-            onChange={onBookmarkFilterChange}
-          />
-          <FilterRow
-            label="Flag"
-            value={flagFilter}
-            options={flagOptions}
-            onChange={onFlagFilterChange}
-          />
-        </div>
+            {isVideoPlaying && videoPlaybackEvent && (
+              <div className="mt-2 rounded-md border border-sky-200 bg-sky-50/80 px-2 py-1.5">
+                <p className="text-[10px] font-medium text-sky-700">
+                  Currently playing:
+                </p>
+                <p className="text-[11px] text-sky-900">
+                  {videoPlaybackEvent.timestamp} — {videoPlaybackEvent.title}
+                </p>
+              </div>
+            )}
 
-        {selectedEventHiddenByFilter && (
-          <p className="mt-2 text-[10px] text-amber-700">
-            Selected event is hidden by current filters.
-          </p>
+            <div className="relative mt-2">
+              <Search className="pointer-events-none absolute top-1/2 left-2 size-3 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => onSearchQueryChange(event.target.value)}
+                placeholder="Search events or sources..."
+                className="h-7 w-full rounded-md border border-slate-200 bg-white pr-2 pl-7 text-[11px] text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-slate-300"
+              />
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-[10px] text-slate-600">
+              <span>Sources: {stats.sourceCount}</span>
+              <span>Duration: {formatDurationLabel(stats.durationSeconds)}</span>
+              <span className="col-span-2">
+                Peak speed: {stats.peakSpeedMph} mph
+              </span>
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              <FilterRow
+                label="Source"
+                value={sourceFilter}
+                options={sourceOptions}
+                onChange={onSourceFilterChange}
+              />
+              <FilterRow
+                label="Severity"
+                value={severityFilter}
+                options={severityOptions}
+                onChange={onSeverityFilterChange}
+              />
+              <FilterRow
+                label="Review"
+                value={reviewStatusFilter}
+                options={reviewStatusOptions}
+                onChange={onReviewStatusFilterChange}
+              />
+              <FilterRow
+                label="Bookmark"
+                value={bookmarkFilter}
+                options={bookmarkOptions}
+                onChange={onBookmarkFilterChange}
+              />
+              <FilterRow
+                label="Flag"
+                value={flagFilter}
+                options={flagOptions}
+                onChange={onFlagFilterChange}
+              />
+            </div>
+
+            {selectedEventHiddenByFilter && (
+              <p className="mt-2 text-[10px] text-amber-700">
+                Selected event is hidden by current filters.
+              </p>
+            )}
+          </>
         )}
       </div>
 

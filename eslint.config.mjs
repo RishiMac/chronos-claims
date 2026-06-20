@@ -7,10 +7,13 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
+    ".venv/**",
+    "node_modules/**",
     ".next/**",
     "out/**",
+    "dist/**",
     "build/**",
+    "mygeotab-api-adapter/**",
     "next-env.d.ts",
   ]),
 ]);

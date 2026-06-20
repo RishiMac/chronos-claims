@@ -1,0 +1,59 @@
+import { detectTelematicsEvents } from "@/lib/detectTelematicsEvents";
+import { buildParsedTelematics } from "@/lib/telematicsTransforms";
+import { parseTelemetryCsv } from "@/lib/telematics/parseTelemetryCsv";
+import { serializeTelematicsMap } from "@/lib/storage/claimSerializer";
+import type { ParsedTelematics, SerializedTelematics } from "@/types/claim";
+
+export const REAL_DEMO_TELEMATICS_EVIDENCE_ID = "ev-real-telematics";
+
+const SAMSARA_CSV = `event_time,vehicle_speed,gps_latitude,gps_longitude,harsh_brake,harsh_accel,heading
+2026-03-14 18:41:00,36,27.950600,-82.457200,false,0.1,90
+2026-03-14 18:41:01,37,27.950630,-82.457180,false,0.1,90
+2026-03-14 18:41:02,38,27.950660,-82.457160,false,0.1,90
+2026-03-14 18:41:03,39,27.950690,-82.457140,false,0.1,90
+2026-03-14 18:41:04,36,27.950720,-82.457120,false,0.1,90
+2026-03-14 18:41:05,37,27.950750,-82.457100,false,0.1,90
+2026-03-14 18:41:06,38,27.950780,-82.457080,false,0.1,90
+2026-03-14 18:41:07,39,27.950810,-82.457060,false,0.1,90
+2026-03-14 18:41:08,36,27.950840,-82.457040,false,0.1,90
+2026-03-14 18:41:09,37,27.950870,-82.457020,false,0.1,90
+2026-03-14 18:41:10,40,27.950900,-82.457000,false,0,90
+2026-03-14 18:41:11,35,27.950930,-82.456980,false,0,90
+2026-03-14 18:41:12,30,27.950960,-82.456960,true,0,90
+2026-03-14 18:41:13,25,27.950990,-82.456940,true,0,90
+2026-03-14 18:41:14,20,27.951020,-82.456920,true,0,90
+2026-03-14 18:41:15,15,27.951050,-82.456900,true,0,90
+2026-03-14 18:41:16,10,27.951080,-82.456880,true,0,90
+2026-03-14 18:41:17,8,27.951110,-82.456860,true,0,90
+2026-03-14 18:41:18,6,27.951140,-82.456840,true,0,90
+2026-03-14 18:41:19,4,27.951170,-82.456820,true,0,90
+2026-03-14 18:41:20,2,27.951200,-82.456800,true,0,90
+2026-03-14 18:41:21,0,27.951230,-82.456780,true,0,90
+2026-03-14 18:41:22,0,27.951260,-82.456760,true,0,90
+2026-03-14 18:41:23,0,27.951290,-82.456740,true,0,90`;
+
+let cachedParsedTelematics: ParsedTelematics | null = null;
+
+export function getRealDemoParsedTelematics(): ParsedTelematics {
+  if (cachedParsedTelematics) return cachedParsedTelematics;
+
+  const parsedBase = parseTelemetryCsv(SAMSARA_CSV, "samsara_telematics.csv");
+  const detectedEvents = detectTelematicsEvents(
+    parsedBase.records,
+    REAL_DEMO_TELEMATICS_EVIDENCE_ID,
+    "samsara_telematics.csv"
+  );
+  cachedParsedTelematics = buildParsedTelematics(
+    REAL_DEMO_TELEMATICS_EVIDENCE_ID,
+    parsedBase,
+    detectedEvents
+  );
+  return cachedParsedTelematics;
+}
+
+export function getRealDemoTelematicsSerialized(): SerializedTelematics[] {
+  const parsed = getRealDemoParsedTelematics();
+  return serializeTelematicsMap({
+    [REAL_DEMO_TELEMATICS_EVIDENCE_ID]: parsed,
+  });
+}
