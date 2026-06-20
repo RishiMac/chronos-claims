@@ -1,9 +1,0 @@
-{"timestamp":"00:00:00.420","source":"Server","level":"LOG","message":""}
-{"timestamp":"00:00:00.838","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
-{"timestamp":"00:00:04.082","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
-{"timestamp":"00:02:02.723","source":"Server","level":"LOG","message":"✓ Compiled in 207ms"}
-{"timestamp":"00:02:03.053","source":"Server","level":"LOG","message":"✓ Compiled in 31ms"}
-{"timestamp":"00:02:03.309","source":"Server","level":"LOG","message":"✓ Compiled in 37ms"}
-{"timestamp":"00:02:04.022","source":"Server","level":"LOG","message":"✓ Compiled in 49ms"}
-{"timestamp":"00:02:19.331","source":"Server","level":"LOG","message":"✓ Compiled in 149ms"}
-{"timestamp":"00:03:01.919","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
