@@ -33,3 +33,4 @@ tmp/
 # Local-only raw data clones (curated assets under data/demo-claims/ remain tracked)
 data/photos/peltarion-car-damage/
 mygeotab-api-adapter/.git/
+mygeotab-api-adapter/
